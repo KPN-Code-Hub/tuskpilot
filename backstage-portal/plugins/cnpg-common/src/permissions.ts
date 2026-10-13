@@ -139,6 +139,24 @@ export const cnpgBucketDeletePermission = createPermission({
   attributes: { action: 'delete' },
 });
 
+/**
+ * List the disks (PersistentVolumeClaims and PersistentVolumes) of the
+ * PostgreSQL instances in every project and location, including orphaned ones.
+ */
+export const cnpgVolumeReadPermission = createPermission({
+  name: 'cnpg.volume.read',
+  attributes: { action: 'read' },
+});
+
+/**
+ * Delete an orphaned disk (its PostgresCluster is gone) together with the
+ * storage behind it. Can't be undone: platform admins only.
+ */
+export const cnpgVolumeDeletePermission = createPermission({
+  name: 'cnpg.volume.delete',
+  attributes: { action: 'delete' },
+});
+
 export const cnpgPermissions = [
   cnpgClusterReadPermission,
   cnpgClusterCreatePermission,
@@ -158,4 +176,6 @@ export const cnpgPermissions = [
   cnpgLocationDeletePermission,
   cnpgBucketReadPermission,
   cnpgBucketDeletePermission,
+  cnpgVolumeReadPermission,
+  cnpgVolumeDeletePermission,
 ];

@@ -2,6 +2,7 @@ import { Alert, Button, Card, CardBody, CardHeader, Flex, Grid, Text } from '@ba
 import type {
   BucketState,
   BucketUsage,
+  VolumeState,
   PostgresClusterSummary,
   ProjectSummary,
 } from '@internal/backstage-plugin-cnpg-common';
@@ -75,6 +76,16 @@ const BUCKET_STATE: Record<BucketState, { health: Health; label: string }> = {
 
 export const BucketStateBadge = ({ state }: { state: BucketState }) => (
   <StatusDot health={BUCKET_STATE[state].health} label={BUCKET_STATE[state].label} />
+);
+
+const VOLUME_STATE: Record<VolumeState, { health: Health; label: string }> = {
+  'in-use': { health: 'healthy', label: 'In use' },
+  orphaned: { health: 'degraded', label: 'Orphaned' },
+  released: { health: 'degraded', label: 'Released' },
+};
+
+export const VolumeStateBadge = ({ state }: { state: VolumeState }) => (
+  <StatusDot health={VOLUME_STATE[state].health} label={VOLUME_STATE[state].label} />
 );
 
 /** 1536 -> "1.5 KiB". */

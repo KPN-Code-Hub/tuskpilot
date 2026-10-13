@@ -35,7 +35,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import useAsyncRetry from 'react-use/esm/useAsyncRetry';
 import useInterval from 'react-use/esm/useInterval';
 import { cnpgApiRef } from '../api';
-import { clusterRouteRef, createClusterRouteRef, editProjectRouteRef, projectsRouteRef } from '../routes';
+import {
+  clusterRouteRef,
+  createClusterRouteRef,
+  editProjectRouteRef,
+  projectsRouteRef,
+  volumesRouteRef,
+} from '../routes';
 import { ProjectBackupsPanel } from './Backups';
 import {
   age,
@@ -284,6 +290,7 @@ export const ProjectDetailPage = () => {
   const api = useApi(cnpgApiRef);
   const createClusterLink = useRouteRef(createClusterRouteRef);
   const editLink = useRouteRef(editProjectRouteRef);
+  const volumesLink = useRouteRef(volumesRouteRef);
   const { allowed: canCreateCluster } = usePermission({ permission: cnpgClusterCreatePermission });
   const { allowed: canUpdate } = usePermission({ permission: cnpgProjectUpdatePermission });
   const { allowed: canDelete } = usePermission({ permission: cnpgProjectDeletePermission });
@@ -310,6 +317,11 @@ export const ProjectDetailPage = () => {
         customActions={
           <Flex gap="3" align="center">
             {summary && <ProjectHealthBadge project={summary} />}
+            {volumesLink && (
+              <ButtonLink href={`${volumesLink()}?project=${encodeURIComponent(name)}`} variant="secondary">
+                Volumes
+              </ButtonLink>
+            )}
             {canUpdate && editLink && summary && !summary.deleting && (
               <ButtonLink href={editLink({ name })} variant="secondary">
                 Edit

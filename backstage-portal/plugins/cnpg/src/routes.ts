@@ -87,6 +87,12 @@ export const bucketRouteRef = createSubRouteRef({
   path: '/buckets/:name',
 });
 
+/** /cnpg/volumes -- the disks of PostgreSQL instances in every project. */
+export const volumesRouteRef = createSubRouteRef({
+  parent: rootRouteRef,
+  path: '/volumes',
+});
+
 /** /cnpg/projects -- the project list. */
 export const projectsRouteRef = createSubRouteRef({
   parent: rootRouteRef,

@@ -7,6 +7,7 @@ import { createRouter } from './router';
 import { bucketServiceRef } from './service/BucketService';
 import { cnpgKubernetesServiceRef } from './service/CnpgKubernetesService';
 import { locationServiceRef } from './service/LocationService';
+import { volumeServiceRef } from './service/VolumeService';
 
 /**
  * REST API for the CNPG portal: list / inspect / create / update / delete
@@ -27,6 +28,7 @@ export const cnpgPlugin = createBackendPlugin({
         k8s: cnpgKubernetesServiceRef,
         locations: locationServiceRef,
         buckets: bucketServiceRef,
+        volumes: volumeServiceRef,
       },
       async init({
         httpAuth,
@@ -37,9 +39,10 @@ export const cnpgPlugin = createBackendPlugin({
         k8s,
         locations,
         buckets,
+        volumes,
       }) {
         permissionsRegistry.addPermissions(cnpgPermissions);
-        httpRouter.use(await createRouter({ httpAuth, permissions, config, k8s, locations, buckets }));
+        httpRouter.use(await createRouter({ httpAuth, permissions, config, k8s, locations, buckets, volumes }));
         httpRouter.addAuthPolicy({ path: '/health', allow: 'unauthenticated' });
       },
     });

@@ -28,6 +28,7 @@ import {
   locationsRouteRef,
   projectRouteRef,
   projectsRouteRef,
+  volumesRouteRef,
   rootRouteRef,
 } from './routes';
 
@@ -89,5 +90,6 @@ export const cnpgPlugin = createFrontendPlugin({
     editLocation: editLocationRouteRef,
     buckets: bucketsRouteRef,
     bucket: bucketRouteRef,
+    volumes: volumesRouteRef,
   },
 });

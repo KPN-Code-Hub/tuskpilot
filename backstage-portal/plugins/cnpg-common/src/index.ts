@@ -9,4 +9,5 @@ export * from './locations';
 export * from './promotion';
 export * from './restore';
 export * from './buckets';
+export * from './volumes';
 export * from './sizes';

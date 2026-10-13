@@ -10,6 +10,7 @@ import {
 } from './service/CnpgKubernetesService';
 import { BucketService, bucketServiceRef } from './service/BucketService';
 import { LocationService, locationServiceRef } from './service/LocationService';
+import { VolumeService, volumeServiceRef } from './service/VolumeService';
 import { PostgresCluster, Project } from '@internal/backstage-plugin-cnpg-common';
 
 const ordersDb: PostgresCluster = {
@@ -119,11 +120,29 @@ function fakeBuckets(configured = true) {
   };
 }
 
+const orphanVolume = {
+  location: 'prod-ams',
+  project: 'demo',
+  claim: 'gone-db-1',
+  volume: 'pv-2',
+  state: 'orphaned',
+  phase: 'Bound',
+};
+
+function fakeVolumes() {
+  return {
+    list: jest.fn(async () => ({ items: [orphanVolume] })),
+    deleteClaim: jest.fn(async () => undefined),
+    deleteVolume: jest.fn(async () => undefined),
+  };
+}
+
 async function start(
   k8s: ReturnType<typeof fakeK8s>,
   allow = true,
   locations = fakeLocations(),
   buckets = fakeBuckets(),
+  volumes = fakeVolumes(),
 ) {
   const { server } = await startTestBackend({
     features: [
@@ -142,6 +161,11 @@ async function start(
         service: bucketServiceRef,
         deps: {},
         factory: () => buckets as unknown as BucketService,
+      }),
+      createServiceFactory({
+        service: volumeServiceRef,
+        deps: {},
+        factory: () => volumes as unknown as VolumeService,
       }),
       mockServices.permissions.factory({
         result: allow ? AuthorizeResult.ALLOW : AuthorizeResult.DENY,
@@ -774,6 +798,37 @@ describe('cnpg backend', () => {
       expect((await request(server).get('/api/cnpg/buckets')).status).toBe(403);
       expect((await request(server).delete(`/api/cnpg/buckets/${orphan.name}`)).status).toBe(403);
       expect(buckets.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('volumes', () => {
+    it('lists the volumes, optionally of one project', async () => {
+      const volumes = fakeVolumes();
+      const server = await start(fakeK8s(), true, fakeLocations(), fakeBuckets(), volumes);
+      const res = await request(server).get('/api/cnpg/volumes?project=demo');
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ items: [orphanVolume] });
+      expect(volumes.list).toHaveBeenCalledWith({ project: 'demo' });
+      expect((await request(server).get('/api/cnpg/volumes?project=Bad_Name')).status).toBe(400);
+    });
+
+    it('deletes an orphaned claim or released volume', async () => {
+      const volumes = fakeVolumes();
+      const server = await start(fakeK8s(), true, fakeLocations(), fakeBuckets(), volumes);
+      expect((await request(server).delete('/api/cnpg/volumes/prod-ams/claims/demo/gone-db-1')).status).toBe(200);
+      expect(volumes.deleteClaim).toHaveBeenCalledWith('prod-ams', 'demo', 'gone-db-1');
+      expect((await request(server).delete('/api/cnpg/volumes/prod-ams/persistentvolumes/pv-3')).status).toBe(200);
+      expect(volumes.deleteVolume).toHaveBeenCalledWith('prod-ams', 'pv-3');
+    });
+
+    it('needs the volume permissions', async () => {
+      const volumes = fakeVolumes();
+      const server = await start(fakeK8s(), false, fakeLocations(), fakeBuckets(), volumes);
+      expect((await request(server).get('/api/cnpg/volumes')).status).toBe(403);
+      expect((await request(server).delete('/api/cnpg/volumes/prod-ams/claims/demo/gone-db-1')).status).toBe(403);
+      expect((await request(server).delete('/api/cnpg/volumes/prod-ams/persistentvolumes/pv-3')).status).toBe(403);
+      expect(volumes.deleteClaim).not.toHaveBeenCalled();
+      expect(volumes.deleteVolume).not.toHaveBeenCalled();
     });
   });
 });

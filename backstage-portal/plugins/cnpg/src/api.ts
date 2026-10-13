@@ -19,6 +19,8 @@ import type {
   Project,
   PromotionRequest,
   ProjectSummary,
+  VolumeList,
+  VolumeSummary,
 } from '@internal/backstage-plugin-cnpg-common';
 
 export interface CnpgPortalConfig {
@@ -140,6 +142,10 @@ export interface CnpgApi {
   getBucket(name: string): Promise<BucketDetails>;
   /** Deletes an orphaned bucket and everything in it; 409 for one in use. */
   deleteBucket(name: string): Promise<void>;
+  /** The disks of PostgreSQL instances in every project's locations (or one project's). */
+  listVolumes(project?: string): Promise<VolumeList>;
+  /** Deletes an orphaned claim or released volume with its storage; 409 for one in use. */
+  deleteVolume(volume: VolumeSummary): Promise<void>;
 }
 
 export const cnpgApiRef = createApiRef<CnpgApi>().with({
@@ -304,6 +310,18 @@ export class CnpgClient implements CnpgApi {
 
   async deleteBucket(name: string) {
     await this.#request(`/buckets/${enc(name)}`, { method: 'DELETE' });
+  }
+
+  listVolumes(project?: string) {
+    return this.#request<VolumeList>(`/volumes${project ? `?project=${enc(project)}` : ''}`);
+  }
+
+  async deleteVolume(volume: VolumeSummary) {
+    const path =
+      volume.state === 'released'
+        ? `/volumes/${enc(volume.location)}/persistentvolumes/${enc(volume.volume ?? '')}`
+        : `/volumes/${enc(volume.location)}/claims/${enc(volume.project)}/${enc(volume.claim)}`;
+    await this.#request(path, { method: 'DELETE' });
   }
 
   async #request<T>(path: string, init?: RequestInit): Promise<T> {

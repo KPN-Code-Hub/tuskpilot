@@ -30,6 +30,8 @@ import {
   cnpgProjectDeletePermission,
   cnpgProjectReadPermission,
   cnpgProjectUpdatePermission,
+  cnpgVolumeDeletePermission,
+  cnpgVolumeReadPermission,
   clusterRestoreSource,
   LOCAL_LOCATION,
   LOCATION_ENVIRONMENTS,
@@ -53,6 +55,7 @@ import { BucketService } from './service/BucketService';
 import { CnpgKubernetesService } from './service/CnpgKubernetesService';
 import { MAX_KUBECONFIG_BYTES } from './service/kubeconfig';
 import { LocationService, withTimeout } from './service/LocationService';
+import { VolumeService } from './service/VolumeService';
 
 // DNS-1123 label, short enough that CNPG's derived names (<name>-pooler-rw,
 // <name>-1, ...) stay within Kubernetes' limits.
@@ -211,8 +214,9 @@ export async function createRouter(options: {
   k8s: CnpgKubernetesService;
   locations: LocationService;
   buckets: BucketService;
+  volumes: VolumeService;
 }): Promise<express.Router> {
-  const { httpAuth, permissions, config, k8s, locations, buckets } = options;
+  const { httpAuth, permissions, config, k8s, locations, buckets, volumes } = options;
   const router = Router();
   // Uploaded kubeconfigs can carry a few certificates.
   router.use(express.json({ limit: '1mb' }));
@@ -483,6 +487,33 @@ export async function createRouter(options: {
     const p = bucketName.safeParse(req.params);
     if (!p.success) throw new InputError(p.error.toString());
     await buckets.delete(p.data.name);
+    res.json({ status: 'deleted' });
+  });
+
+  // The disks of PostgreSQL instances in every project's locations. Only an
+  // orphaned one (its PostgresCluster is gone) can go, with its storage.
+  const k8sName = z.string().regex(/^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$/, 'invalid name');
+
+  router.get('/volumes', async (req, res) => {
+    await authorize(req, cnpgVolumeReadPermission);
+    const q = z.object({ project: namespace.optional() }).safeParse(req.query);
+    if (!q.success) throw new InputError(q.error.toString());
+    res.json(await volumes.list(q.data));
+  });
+
+  router.delete('/volumes/:location/claims/:namespace/:name', async (req, res) => {
+    await authorize(req, cnpgVolumeDeletePermission);
+    const p = z.object({ location: name, namespace, name: k8sName }).safeParse(req.params);
+    if (!p.success) throw new InputError(p.error.toString());
+    await volumes.deleteClaim(p.data.location, p.data.namespace, p.data.name);
+    res.json({ status: 'deleted' });
+  });
+
+  router.delete('/volumes/:location/persistentvolumes/:name', async (req, res) => {
+    await authorize(req, cnpgVolumeDeletePermission);
+    const p = z.object({ location: name, name: k8sName }).safeParse(req.params);
+    if (!p.success) throw new InputError(p.error.toString());
+    await volumes.deleteVolume(p.data.location, p.data.name);
     res.json({ status: 'deleted' });
   });
 
