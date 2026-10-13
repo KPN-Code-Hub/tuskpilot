@@ -1,7 +1,8 @@
 # PostgreSQL Platform as a Service
 
 A complete PostgreSQL Platform as a Service on Kubernetes, built on
-[CloudNativePG](https://cloudnative-pg.io/) (CNPG). Teams order production-ready PostgreSQL
+[CloudNativePG](https://cloudnative-pg.io/) (CNPG), [Crossplane](https://www.crossplane.io/) and
+[Backstage](https://backstage.io/). Teams order production-ready PostgreSQL
 clusters themselves, through a Kubernetes API or a developer portal. The platform runs and operates
 them:
 
