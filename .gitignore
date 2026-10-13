@@ -2,3 +2,5 @@
 
 # Local secrets (deps/cosi/install.sh reads env/00-env.sh)
 env/
+
+.demo.sh
