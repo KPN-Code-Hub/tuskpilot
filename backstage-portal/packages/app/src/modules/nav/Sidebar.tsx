@@ -9,7 +9,7 @@ const isClusterPath = (p: string) =>
   p === CNPG ||
   (p.startsWith(`${CNPG}/`) &&
     !p.startsWith(`${CNPG}/create`) &&
-    !p.startsWith(`${CNPG}/dashboards`) &&
+    !p.startsWith(`${CNPG}/audit`) &&
     !p.startsWith(`${CNPG}/projects`) &&
     !p.startsWith(`${CNPG}/locations`) &&
     !p.startsWith(`${CNPG}/buckets`) &&
@@ -43,6 +43,7 @@ const sections: Array<{ title: string; items: Item[] }> = [
       },
       { label: 'Volumes', to: `${CNPG}/volumes`, isActive: p => p.startsWith(`${CNPG}/volumes`) },
       { label: 'Buckets', to: `${CNPG}/buckets`, isActive: p => p.startsWith(`${CNPG}/buckets`) },
+      { label: 'Audit logs', to: `${CNPG}/audit`, isActive: p => p.startsWith(`${CNPG}/audit`) },
     ],
   },
   {
@@ -50,16 +51,6 @@ const sections: Array<{ title: string; items: Item[] }> = [
     items: [
       { label: 'PostgreSQL', to: CNPG, isActive: isClusterPath },
       { label: 'New cluster', to: `${CNPG}/create`, isActive: p => p.startsWith(`${CNPG}/create`) },
-    ],
-  },
-  {
-    title: 'Monitoring',
-    items: [
-      {
-        label: 'Dashboards',
-        to: `${CNPG}/dashboards`,
-        isActive: p => p.startsWith(`${CNPG}/dashboards`),
-      },
     ],
   },
 ];

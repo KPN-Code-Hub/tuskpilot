@@ -5,6 +5,7 @@ import {
 } from '@backstage/frontend-plugin-api';
 import { ResponseError } from '@backstage/errors';
 import type {
+  AuditLog,
   BucketDetails,
   BucketSummary,
   ClusterConnection,
@@ -126,6 +127,8 @@ export interface CnpgApi {
   patchProject(name: string, request: PatchRequest): Promise<Project>;
   /** Refused (409) while the project still has PostgreSQL clusters. */
   deleteProject(name: string): Promise<void>;
+  /** Kubernetes events of the project's namespace and pgaudit records of its clusters, newest first. */
+  getAuditLog(project: string, options?: { tailLines?: number }): Promise<AuditLog>;
   listLocations(): Promise<LocationSummary[]>;
   getLocation(name: string): Promise<LocationSummary>;
   /** Probes the location again instead of returning the cached health. */
@@ -252,6 +255,11 @@ export class CnpgClient implements CnpgApi {
 
   async deleteProject(name: string) {
     await this.#request(`/projects/${enc(name)}`, { method: 'DELETE' });
+  }
+
+  getAuditLog(project: string, options?: { tailLines?: number }) {
+    const query = options?.tailLines ? `?tailLines=${options.tailLines}` : '';
+    return this.#request<AuditLog>(`/projects/${enc(project)}/audit${query}`);
   }
 
   async listLocations() {

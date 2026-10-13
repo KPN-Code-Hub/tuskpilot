@@ -1,11 +1,11 @@
 import { Route, Routes } from 'react-router-dom';
+import { AuditLogPage } from './AuditLogPage';
 import { BucketDetailPage } from './BucketDetailPage';
 import { BucketListPage } from './BucketListPage';
 import { ClusterDetailPage } from './ClusterDetailPage';
 import { ClusterListPage } from './ClusterListPage';
 import { CreateClusterPage } from './CreateClusterPage';
 import { CreateProjectPage } from './CreateProjectPage';
-import { DashboardsPage } from './DashboardsPage';
 import { EditClusterPage } from './EditClusterPage';
 import { EditProjectPage } from './EditProjectPage';
 import { CreateLocationPage, EditLocationPage } from './LocationFormPages';
@@ -20,7 +20,7 @@ export const Router = () => (
   <Routes>
     <Route path="/" element={<ClusterListPage />} />
     <Route path="/create" element={<CreateClusterPage />} />
-    <Route path="/dashboards" element={<DashboardsPage />} />
+    <Route path="/audit" element={<AuditLogPage />} />
     {/* Static "locations"/"projects"/"buckets"/"volumes" segments outrank /:namespace/:name; all are reserved project names. */}
     <Route path="/locations" element={<LocationListPage />} />
     <Route path="/locations/create" element={<CreateLocationPage />} />

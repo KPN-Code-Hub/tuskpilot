@@ -27,6 +27,7 @@ import {
   cnpgLocationReadPermission,
   cnpgLocationUpdatePermission,
   cnpgProjectCreatePermission,
+  cnpgProjectAuditReadPermission,
   cnpgProjectDeletePermission,
   cnpgProjectReadPermission,
   cnpgProjectUpdatePermission,
@@ -51,6 +52,7 @@ import {
   summarizeProject,
   targetTimeError,
 } from '@internal/backstage-plugin-cnpg-common';
+import { AuditService } from './service/AuditService';
 import { BucketService } from './service/BucketService';
 import { CnpgKubernetesService } from './service/CnpgKubernetesService';
 import { MAX_KUBECONFIG_BYTES } from './service/kubeconfig';
@@ -215,8 +217,9 @@ export async function createRouter(options: {
   locations: LocationService;
   buckets: BucketService;
   volumes: VolumeService;
+  audit: AuditService;
 }): Promise<express.Router> {
-  const { httpAuth, permissions, config, k8s, locations, buckets, volumes } = options;
+  const { httpAuth, permissions, config, k8s, locations, buckets, volumes, audit } = options;
   const router = Router();
   // Uploaded kubeconfigs can carry a few certificates.
   router.use(express.json({ limit: '1mb' }));
@@ -404,6 +407,22 @@ export async function createRouter(options: {
         }),
     );
     res.json({ summary, resource });
+  });
+
+  // Audit logs: the Kubernetes events of the project's namespace (control
+  // plane and locations) and the pgaudit records of its PostgreSQL instances.
+  router.get('/projects/:name/audit', async (req, res) => {
+    await authorize(req, cnpgProjectReadPermission);
+    await authorize(req, cnpgProjectAuditReadPermission);
+    const p = z.object({ name }).safeParse(req.params);
+    if (!p.success) throw new InputError(p.error.toString());
+    const q = z
+      .object({ tailLines: z.coerce.number().int().min(1).max(20_000).default(5000) })
+      .safeParse(req.query);
+    if (!q.success) throw new InputError(q.error.toString());
+    // Statements can carry data: keep them out of every cache.
+    res.set('Cache-Control', 'no-store');
+    res.json(await audit.list({ project: p.data.name, tailLines: q.data.tailLines }));
   });
 
   router.post('/projects', async (req, res) => {

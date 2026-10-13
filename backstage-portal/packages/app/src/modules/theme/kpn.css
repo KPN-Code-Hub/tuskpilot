@@ -315,38 +315,3 @@ body:not(:has(.kpn-shell)) main article {
   background: var(--bui-bg-neutral-3);
   color: var(--bui-fg-primary);
 }
-
-.kpn-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.kpn-picker button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--bui-fg-primary);
-  font: inherit;
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.kpn-picker button:hover {
-  background: var(--bui-bg-neutral-2);
-}
-
-.kpn-picker button[aria-pressed='true'] {
-  background: #1c2a1f;
-}
-
-.kpn-picker small {
-  margin-left: auto;
-  color: var(--bui-fg-secondary);
-}

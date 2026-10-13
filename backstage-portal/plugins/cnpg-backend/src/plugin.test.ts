@@ -11,6 +11,7 @@ import {
 import { BucketService, bucketServiceRef } from './service/BucketService';
 import { LocationService, locationServiceRef } from './service/LocationService';
 import { VolumeService, volumeServiceRef } from './service/VolumeService';
+import { AuditService, auditServiceRef } from './service/AuditService';
 import { PostgresCluster, Project } from '@internal/backstage-plugin-cnpg-common';
 
 const ordersDb: PostgresCluster = {
@@ -137,12 +138,19 @@ function fakeVolumes() {
   };
 }
 
+function fakeAudit() {
+  return {
+    list: jest.fn(async ({ project }: { project: string }) => ({ project, items: [], clusters: [] })),
+  };
+}
+
 async function start(
   k8s: ReturnType<typeof fakeK8s>,
   allow = true,
   locations = fakeLocations(),
   buckets = fakeBuckets(),
   volumes = fakeVolumes(),
+  audit = fakeAudit(),
 ) {
   const { server } = await startTestBackend({
     features: [
@@ -166,6 +174,11 @@ async function start(
         service: volumeServiceRef,
         deps: {},
         factory: () => volumes as unknown as VolumeService,
+      }),
+      createServiceFactory({
+        service: auditServiceRef,
+        deps: {},
+        factory: () => audit as unknown as AuditService,
       }),
       mockServices.permissions.factory({
         result: allow ? AuthorizeResult.ALLOW : AuthorizeResult.DENY,
@@ -798,6 +811,27 @@ describe('cnpg backend', () => {
       expect((await request(server).get('/api/cnpg/buckets')).status).toBe(403);
       expect((await request(server).delete(`/api/cnpg/buckets/${orphan.name}`)).status).toBe(403);
       expect(buckets.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('audit', () => {
+    it("returns a project's audit log", async () => {
+      const audit = fakeAudit();
+      const server = await start(fakeK8s(), true, fakeLocations(), fakeBuckets(), fakeVolumes(), audit);
+      const res = await request(server).get('/api/cnpg/projects/demo/audit?tailLines=200');
+      expect(res.status).toBe(200);
+      expect(res.headers['cache-control']).toBe('no-store');
+      expect(res.body).toEqual({ project: 'demo', items: [], clusters: [] });
+      expect(audit.list).toHaveBeenCalledWith({ project: 'demo', tailLines: 200 });
+      expect((await request(server).get('/api/cnpg/projects/Bad_Name/audit')).status).toBe(400);
+      expect((await request(server).get('/api/cnpg/projects/demo/audit?tailLines=0')).status).toBe(400);
+    });
+
+    it('needs the audit permission', async () => {
+      const audit = fakeAudit();
+      const server = await start(fakeK8s(), false, fakeLocations(), fakeBuckets(), fakeVolumes(), audit);
+      expect((await request(server).get('/api/cnpg/projects/demo/audit')).status).toBe(403);
+      expect(audit.list).not.toHaveBeenCalled();
     });
   });
 

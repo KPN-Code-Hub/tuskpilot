@@ -4,9 +4,9 @@
 # COSI driver's keys for the Buckets page (bottom). It never
 # touches CNPG objects directly -- every write goes through the
 # PostgresCluster, Project and Location APIs (and so through their XRD
-# schemas). The databases run in the locations: the detail page and the Logs
-# tab read their CNPG Clusters, pods, events and logs with each location's
-# kubeconfig, not with this ServiceAccount.
+# schemas). The databases run in the locations: the detail page, the Logs
+# tab and the Audit logs page read their CNPG Clusters, pods, events and logs
+# with each location's kubeconfig, not with this ServiceAccount.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -36,6 +36,12 @@ rules:
   - apiGroups: [""]
     resources: [namespaces]
     verbs: [get, list, watch]
+  # Audit logs page: the events of a project's namespace (Project, its
+  # PostgresClusters, Crossplane), and of the Project itself, which as a
+  # cluster-scoped object gets them in "default".
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [list]
   # Locations (the clusters databases run in), each pointing at its
   # kubeconfig Secret (bottom); their composition creates the
   # ClusterProviderConfig Crossplane places objects through. The API server

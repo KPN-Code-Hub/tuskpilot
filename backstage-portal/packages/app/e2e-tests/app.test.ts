@@ -26,5 +26,5 @@ test('App signs in and lands on the PostgreSQL clusters', async ({ page }) => {
   await expect(page).toHaveURL(/\/cnpg$/);
   const nav = page.getByRole('navigation', { name: 'sidebar nav' });
   await expect(nav.getByRole('link', { name: 'PostgreSQL', exact: true })).toBeVisible();
-  await expect(nav.getByRole('link', { name: 'Dashboards', exact: true })).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'Audit logs', exact: true })).toBeVisible();
 });

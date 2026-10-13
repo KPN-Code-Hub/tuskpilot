@@ -78,6 +78,15 @@ export const cnpgProjectCreatePermission = createPermission({
   attributes: { action: 'create' },
 });
 
+/**
+ * Read a Project's audit logs: the Kubernetes events in its namespace and the
+ * pgaudit records of its PostgreSQL clusters, which carry SQL statements.
+ */
+export const cnpgProjectAuditReadPermission = createPermission({
+  name: 'cnpg.project.audit.read',
+  attributes: { action: 'read' },
+});
+
 /** Change a Project's owner, access, quota and observability settings. */
 export const cnpgProjectUpdatePermission = createPermission({
   name: 'cnpg.project.update',
@@ -167,6 +176,7 @@ export const cnpgPermissions = [
   cnpgClusterSwitchoverPermission,
   cnpgClusterFailoverPermission,
   cnpgProjectReadPermission,
+  cnpgProjectAuditReadPermission,
   cnpgProjectCreatePermission,
   cnpgProjectUpdatePermission,
   cnpgProjectDeletePermission,

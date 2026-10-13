@@ -36,6 +36,7 @@ import useAsyncRetry from 'react-use/esm/useAsyncRetry';
 import useInterval from 'react-use/esm/useInterval';
 import { cnpgApiRef } from '../api';
 import {
+  auditRouteRef,
   clusterRouteRef,
   createClusterRouteRef,
   editProjectRouteRef,
@@ -291,6 +292,7 @@ export const ProjectDetailPage = () => {
   const createClusterLink = useRouteRef(createClusterRouteRef);
   const editLink = useRouteRef(editProjectRouteRef);
   const volumesLink = useRouteRef(volumesRouteRef);
+  const auditLink = useRouteRef(auditRouteRef);
   const { allowed: canCreateCluster } = usePermission({ permission: cnpgClusterCreatePermission });
   const { allowed: canUpdate } = usePermission({ permission: cnpgProjectUpdatePermission });
   const { allowed: canDelete } = usePermission({ permission: cnpgProjectDeletePermission });
@@ -320,6 +322,11 @@ export const ProjectDetailPage = () => {
             {volumesLink && (
               <ButtonLink href={`${volumesLink()}?project=${encodeURIComponent(name)}`} variant="secondary">
                 Volumes
+              </ButtonLink>
+            )}
+            {auditLink && (
+              <ButtonLink href={`${auditLink()}?project=${encodeURIComponent(name)}`} variant="secondary">
+                Audit logs
               </ButtonLink>
             )}
             {canUpdate && editLink && summary && !summary.deleting && (
