@@ -2,13 +2,13 @@
 
 # Rebuild apis/postgrescluster/composition.yaml from composition.tmpl.yaml + src/
 generate:
-	python3 hack/generate.py
+	go run ./hack/generate
 
 # Fail if composition.yaml is stale
 check:
-	python3 hack/generate.py --check
+	go run ./hack/generate --check
 
-# Offline render + schema validation tests (needs crossplane CLI + Docker/podman)
+# Offline render + schema validation tests (needs Go, crossplane CLI + Docker/podman)
 test:
 	tests/render/run.sh
 

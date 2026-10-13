@@ -178,7 +178,7 @@ if ! "${C[@]}" wait project/demo --for=condition=Ready --timeout=600s; then
   exit 1
 fi
 "${C[@]}" get project demo
-"${C[@]}" get project demo -o jsonpath='{.status}' | python3 -m json.tool
+"${C[@]}" get project demo -o jsonpath='{.status}' | jq .
 "${L[@]}" get namespace demo --show-labels
 "${L[@]}" -n demo get rolebinding -l platform.cncp.nl/project=demo -o wide
 
@@ -215,7 +215,7 @@ if ! "${C[@]}" -n demo wait postgrescluster/orders-db --for=condition=Ready --ti
   "${L[@]}" -n demo get cluster,pooler,database,podmonitor,prometheusrule,pods
   exit 1
 fi
-"${C[@]}" -n demo get postgrescluster orders-db -o jsonpath='{.status}' | python3 -m json.tool
+"${C[@]}" -n demo get postgrescluster orders-db -o jsonpath='{.status}' | jq .
 "${L[@]}" -n demo get cluster,pooler,database,podmonitor,prometheusrule,pods
 if "${C[@]}" get crd clusters.postgresql.cnpg.io >/dev/null 2>&1; then
   echo "FAIL: CloudNativePG on the control plane; it must run no databases"; exit 1

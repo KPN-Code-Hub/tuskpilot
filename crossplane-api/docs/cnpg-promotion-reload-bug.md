@@ -87,7 +87,7 @@ replicas and switches the primary over (`primaryUpdateMethod: switchover`) by it
   interruption) to apply `archive_mode`.
 
 Tests: `tests/render/postgrescluster/observed/switchover.yaml` gives the recovery
-member a `lastPromotionToken` from an earlier promotion; `assert.py` checks the
+member a `lastPromotionToken` from an earlier promotion; `tests/render/rendertest` checks the
 parameter value and that only that member carries it (`make test`).
 
 ## Manual recovery (clusters without the workaround)

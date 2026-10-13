@@ -1,4 +1,4 @@
-# Source for composition.yaml. hack/generate.py replaces the #@DASHBOARD_JSON@
+# Source for composition.yaml. hack/generate replaces the #@DASHBOARD_JSON@
 # and #@ALERT_RULES@ marker lines with ../../src/dashboards/cnpg-cluster.json
 # and ../../src/alerts/cnpg-cluster-rules.yaml (escaped for Go templating).
 # Edit this file, then run `make generate`; never edit composition.yaml.
@@ -956,7 +956,7 @@ spec:
               # CloudNativePG's official Grafana dashboard (Apache-2.0), same
               # JSON as cn-paas-operator-poc's internal/cnpg/dashboards, with
               # title/uid and the namespace/cluster variables preset to this
-              # cluster by hack/generate.py.
+              # cluster by hack/generate.
               json: |
                 #@DASHBOARD_JSON@
             {{- end }}

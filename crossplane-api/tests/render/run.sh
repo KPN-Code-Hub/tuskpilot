@@ -15,9 +15,9 @@
 #     Crossplane's ClusterUsage from ../crds. The manifest inside each provider-kubernetes Object (what goes
 #     to a remote location) is validated too. Core kinds (Namespace,
 #     RoleBinding, ...) have no CRD and are skipped.
-#  4. Semantic assertions (<api>/assert.py).
+#  4. Semantic assertions (rendertest/<api>.go).
 #
-# Requires the crossplane CLI (v2), helm, python3 + PyYAML, and a Docker API
+# Requires the crossplane CLI (v2), helm, Go, and a Docker API
 # (rootless podman works: export DOCKER_HOST=unix:///run/user/$UID/podman/podman.sock).
 set -euo pipefail
 
@@ -34,8 +34,12 @@ fi
 OUT="$(mktemp -d)"
 trap 'rm -rf "${OUT}"' EXIT
 
+echo "=== build rendertest"
+RT="${OUT}/rendertest"
+(cd "${API_ROOT}" && go build -o "${RT}" ./tests/render/rendertest)
+
 echo "=== generate --check"
-python3 "${API_ROOT}/hack/generate.py" --check
+(cd "${API_ROOT}" && go run ./hack/generate --check)
 
 echo "=== collecting CRD schemas"
 SCHEMAS="${OUT}/schemas"
@@ -46,11 +50,7 @@ for api in "${APIS[@]}"; do
 done
 helm template cnpg "${OPERATOR_CHARTS}/cloudnative-pg" --show-only templates/crds/crds.yaml > "${SCHEMAS}/cnpg-crds.yaml"
 helm template barman "${OPERATOR_CHARTS}/plugin-barman-cloud" > "${OUT}/barman-all.yaml"
-python3 -I - "${OUT}/barman-all.yaml" "${SCHEMAS}/barman-crds.yaml" <<'EOF'
-import sys, yaml
-docs = [d for d in yaml.safe_load_all(open(sys.argv[1])) if d and d.get("kind") == "CustomResourceDefinition"]
-yaml.safe_dump_all(docs, open(sys.argv[2], "w"))
-EOF
+"${RT}" crds "${OUT}/barman-all.yaml" "${SCHEMAS}/barman-crds.yaml"
 
 fail=0
 for api in "${APIS[@]}"; do
@@ -88,19 +88,13 @@ for api in "${APIS[@]}"; do
       echo "=== ${api}/${case} (${state}): validate against CRD schemas"
       # Function Result documents are render output only, and core kinds have
       # no CRD to validate against.
-      python3 -I - "${out}" "${out}.objects" <<'EOF'
-import sys, yaml
-CORE = {"v1", "rbac.authorization.k8s.io/v1", "networking.k8s.io/v1", "apiregistration.k8s.io/v1", "batch/v1"}
-docs = [d for d in yaml.safe_load_all(open(sys.argv[1])) if d and d.get("kind") != "Result"]
-docs += [d["spec"]["forProvider"]["manifest"] for d in list(docs) if d.get("kind") == "Object"]
-yaml.safe_dump_all([d for d in docs if d.get("apiVersion") not in CORE], open(sys.argv[2], "w"))
-EOF
+      "${RT}" objects "${out}" "${out}.objects"
       if ! crossplane resource validate "${SCHEMAS}" "${out}.objects" --skip-success-results >"${out}.validate" 2>&1; then
         echo "FAIL: schema validation"; cat "${out}.validate"; fail=1
       fi
 
       echo "=== ${api}/${case} (${state}): assertions"
-      python3 -I "${dir}/assert.py" "${case}" "${state}" "${out}" "${API_ROOT}/src/dashboards/cnpg-cluster.json" || fail=1
+      "${RT}" assert "${api}" "${case}" "${state}" "${out}" "${API_ROOT}/src/dashboards/cnpg-cluster.json" || fail=1
     done
   done
 done

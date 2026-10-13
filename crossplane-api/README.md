@@ -437,13 +437,16 @@ apis/project/definition.yaml               Project XRD (cluster-scoped)
 apis/project/composition.yaml              Project composition (hand-written, nothing embedded)
 apis/project/policies.yaml                 deletion protection, PostgresClusters only in a Project's
                                            sites, unschedulable locations
-hack/generate.py                           embeds src/ into the composition (escapes {{ }})
-hack/observe.py                            generates tests/render observed-state fixtures
+hack/generate/                             embeds src/ into the composition (escapes {{ }})
+hack/observe/                              generates tests/render observed-state fixtures
+hack/alertrules/                           writes src/alerts/ for hack/refresh-alerts.sh
+internal/doc/                              shared YAML helpers for the Go tools
 install/                                   Crossplane, function-go-templating, provider-kubernetes, RBAC,
                                            install/uninstall, add-location.sh, migrate-locations.sh
 examples/                                  PostgresClusters (incl. a geo-replicated and a restored one), a Project, the
                                            project-defaults EnvironmentConfig
 tests/render/<api>/                        offline render + schema validation tests per API
+tests/render/rendertest/                   their assertions (one Go file per API)
 ```
 
 ## Install
@@ -499,7 +502,7 @@ make test       # crossplane render for every API (PostgresCluster: 20 cases inc
                 # crossplane resource validate against
                 # the CNPG/Barman/Prometheus/Grafana/provider-kubernetes/ClusterUsage CRDs
                 # (manifests inside Objects too), assertions
-python3 hack/observe.py project full   # regenerate an observed-state fixture after changing a composition
+go run ./hack/observe project full   # regenerate an observed-state fixture after changing a composition
 # crossplane render doesn't resolve namespaced extra resources (Crossplane itself does), so the
 # render tests can't show COSI's credentials Secrets being unpacked; they check the rest.
 ../hack/e2e-kind.sh        # the real thing: a control plane and one location on kind

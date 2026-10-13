@@ -114,6 +114,14 @@ PRIMARY=$(K get cluster $C -o jsonpath='{.status.currentPrimary}')
 # check the primary writing side (self vs. primary: which location is the source of truth)
 K get cluster $C -o custom-columns=SELF:.spec.replica.self,PRIMARY:.spec.replica.primary,POD:.status.currentPrimary
 
+# the writing side across both locations (a location writes when its replica.self equals replica.primary)
+{ echo -e "LOCATION\tSTATE\tPRIMARY_POD"
+  for ctx in {{protected_context}} {{recovery_context}}; do
+    kubectl --context $ctx -n {{cnpg_namespace}} get cluster $C \
+      -o jsonpath="{\"$ctx\"}{\"\t\"}{.spec.replica.self}{\"\t\"}{.spec.replica.primary}{\"\t\"}{.status.currentPrimary}{\"\n\"}" |
+    awk -F'\t' -v OFS='\t' '{print $1, ($2==$3 ? "writing" : "replica-of-" $3), $4}'
+  done; } | column -t -s $'\t'
+
 # every cluster in the location, with its phase, ready instances and current vs. target primary
 # (current != target means a switchover or failover is in progress)
 kubectl --context {{cluster_context}} get clusters.postgresql.cnpg.io -A \
@@ -145,10 +153,13 @@ K exec $PRIMARY -c postgres -- psql -c "
   select pg_is_in_recovery(), pg_last_wal_replay_lsn(),
          now() - pg_last_xact_replay_timestamp() as replay_delay"
 
-# replication slots and how much WAL each one holds back (an inactive slot fills the disk)
+# replication slots and how much WAL each one holds back (an inactive slot fills the disk);
+# pg_current_wal_lsn() fails during recovery, so a replica cluster measures from its replay position
 K exec $PRIMARY -c postgres -- psql -c "
   select slot_name, slot_type, active,
-         pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)) as retained_wal
+         pg_size_pretty(pg_wal_lsn_diff(
+           case when pg_is_in_recovery() then pg_last_wal_replay_lsn() else pg_current_wal_lsn() end,
+           restart_lsn)) as retained_wal
   from pg_replication_slots"
 ```
 

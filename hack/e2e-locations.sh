@@ -322,7 +322,7 @@ if ! "${C[@]}" -n ${NS} wait postgrescluster/ledger-db --for=condition=Ready --t
   exit 1
 fi
 "${C[@]}" -n ${NS} get postgrescluster ledger-db
-"${C[@]}" -n ${NS} get postgrescluster ledger-db -o jsonpath='{.status.locations}' | python3 -m json.tool
+"${C[@]}" -n ${NS} get postgrescluster ledger-db -o jsonpath='{.status.locations}' | jq .
 if "${C[@]}" -n ${NS} get pods -l cnpg.io/cluster=ledger-db 2>/dev/null | grep -q ledger-db; then
   echo "FAIL: database pods on the control plane"; exit 1
 fi
