@@ -20,6 +20,7 @@ import {
   type ClusterLocationStatus,
   type Condition,
   type InstancePod,
+  pgauditLog,
   type PostgresClusterDetails,
 } from '@internal/backstage-plugin-cnpg-common';
 import { ReactNode, useState } from 'react';
@@ -159,6 +160,8 @@ export const ClusterDetails = ({ details }: { details: PostgresClusterDetails })
   const tuned = Object.entries(status.sizing?.parameters ?? {})
     .map(([k, v]) => `${k}=${v}`)
     .join(', ');
+  // The size's setting, under the cluster's own (as the composition merges them).
+  const auditLog = pgauditLog({ ...status.sizing?.parameters, ...spec.postgresql?.parameters });
   const ns = summary.namespace;
   const h = health(summary);
 
@@ -275,6 +278,7 @@ export const ClusterDetails = ({ details }: { details: PostgresClusterDetails })
               ['Metrics (PodMonitor)', onOff(spec.monitoring?.enabled ?? true)],
               ['Alerts (PrometheusRule)', onOff(spec.monitoring?.prometheusRule?.enabled ?? true)],
               ['Grafana dashboard', status.monitoring?.dashboardUid ? <Mono>{status.monitoring.dashboardUid}</Mono> : 'disabled'],
+              ['Audit logging (pgaudit)', auditLog ? <Mono>{auditLog}</Mono> : 'disabled'],
             ]}
           />
         </Section>

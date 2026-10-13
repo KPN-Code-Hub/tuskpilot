@@ -48,6 +48,10 @@ export interface ClusterForm {
   backupSchedule: string;
   monitoringEnabled: boolean;
   dashboardEnabled: boolean;
+  /** pgaudit: records the statements of the classes in auditLog (spec.postgresql.parameters["pgaudit.log"]). */
+  auditEnabled: boolean;
+  /** pgaudit.log, e.g. "ddl, role". */
+  auditLog: string;
 }
 
 export const defaultForm = (namespace = ''): ClusterForm => ({
@@ -86,12 +90,17 @@ export const defaultForm = (namespace = ''): ClusterForm => ({
   backupSchedule: '0 0 2 * * *',
   monitoringEnabled: true,
   dashboardEnabled: true,
+  auditEnabled: false,
+  auditLog: 'ddl, role',
 });
 
 const NAME = /^[a-z]([-a-z0-9]{0,38}[a-z0-9])?$/;
 const QUANTITY = /^[0-9]+(Mi|Gi|Ti)$/;
 const PG_IDENT = /^[a-z_][a-z0-9_]*$/;
 const CPU = /^([0-9]+m|[0-9]+(\.[0-9]+)?)$/;
+/** pgaudit.log: its statement classes, comma-separated, "-" to subtract one. */
+const AUDIT_CLASS = '-?(read|write|function|role|ddl|misc|misc_set|all)';
+const AUDIT_LOG = new RegExp(`^\\s*${AUDIT_CLASS}(\\s*,\\s*${AUDIT_CLASS})*\\s*$`, 'i');
 
 /** Field-level errors shown inline; the API server remains the final validator. */
 export function validate(f: ClusterForm): Partial<Record<keyof ClusterForm, string>> {
@@ -118,6 +127,9 @@ export function validate(f: ClusterForm): Partial<Record<keyof ClusterForm, stri
   if (f.backupEnabled && !f.backupProjectBucket) {
     if (!/^s3:\/\/.+/.test(f.backupDestinationPath)) e.backupDestinationPath = 'e.g. s3://my-bucket/postgres';
     if (!f.backupSecretName) e.backupSecretName = 'Secret with ACCESS_KEY_ID / ACCESS_SECRET_KEY.';
+  }
+  if (f.auditEnabled && !AUDIT_LOG.test(f.auditLog)) {
+    e.auditLog = 'Classes separated by commas, e.g. ddl, role; prefix "-" to leave one out.';
   }
   if (f.backupEnabled) {
     if (!/^[1-9][0-9]*[dwm]$/.test(f.backupRetention)) e.backupRetention = 'e.g. 30d, 4w';
@@ -158,6 +170,13 @@ export function toSpec(f: ClusterForm, { explicit = false } = {}): Record<string
       grafanaDashboard: { enabled: f.dashboardEnabled },
     },
   };
+  // Only pgaudit.log: other parameters set with kubectl stay as they are, and
+  // turning it off (explicit: an empty map) removes just this key in an edit.
+  if (f.auditEnabled || explicit) {
+    spec.postgresql = {
+      parameters: f.auditEnabled ? { 'pgaudit.log': normalizeAuditLog(f.auditLog) } : {},
+    };
+  }
   if (f.walEnabled) {
     spec.walStorage = { size: f.walSize, ...(f.storageClass ? { storageClass: f.storageClass } : {}) };
   }
@@ -191,6 +210,15 @@ export function toSpec(f: ClusterForm, { explicit = false } = {}): Record<string
   return spec;
 }
 
+/** "DDL ,role" -> "ddl, role". */
+export function normalizeAuditLog(value: string): string {
+  return value
+    .split(',')
+    .map(c => c.trim().toLowerCase())
+    .filter(Boolean)
+    .join(', ');
+}
+
 /** The manifest the form produces, for the preview pane. */
 export function toManifest(f: ClusterForm) {
   return {
@@ -218,6 +246,8 @@ export function fromCluster(cluster: PostgresCluster): ClusterForm {
   const backup = spec.backup ?? {};
   const monitoring = spec.monitoring ?? {};
   const geo = spec.geoReplication ?? {};
+  const auditLog = spec.postgresql?.parameters?.['pgaudit.log'];
+  const auditEnabled = typeof auditLog === 'string' && !['', 'none'].includes(auditLog.trim().toLowerCase());
   // A sized cluster's custom fields start from what the size gives it.
   const resources = spec.resources ?? cluster.status?.sizing?.resources ?? {};
   return {
@@ -256,6 +286,8 @@ export function fromCluster(cluster: PostgresCluster): ClusterForm {
     backupSchedule: backup.schedule ?? d.backupSchedule,
     monitoringEnabled: monitoring.enabled ?? d.monitoringEnabled,
     dashboardEnabled: monitoring.grafanaDashboard?.enabled ?? d.dashboardEnabled,
+    auditEnabled,
+    auditLog: auditEnabled ? auditLog : d.auditLog,
   };
 }
 

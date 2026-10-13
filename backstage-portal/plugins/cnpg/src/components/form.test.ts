@@ -276,3 +276,48 @@ describe('locations', () => {
     });
   });
 });
+
+describe('audit logging', () => {
+  const cluster = (parameters?: Record<string, string>) =>
+    ({
+      apiVersion: 'cnpg.cncp.nl/v1alpha1',
+      kind: 'PostgresCluster',
+      metadata: { name: 'orders-db', namespace: 'demo' },
+      spec: { postgresVersion: 17, instances: 3, ...(parameters ? { postgresql: { parameters } } : {}) },
+    }) as PostgresCluster;
+
+  it('sets pgaudit.log on a new cluster only when switched on', () => {
+    expect(toSpec({ ...defaultForm('demo'), name: 'x' })).not.toHaveProperty('postgresql');
+    expect(toSpec({ ...defaultForm('demo'), name: 'x', auditEnabled: true, auditLog: 'WRITE ,ddl' })).toMatchObject({
+      postgresql: { parameters: { 'pgaudit.log': 'write, ddl' } },
+    });
+  });
+
+  it('validates the classes', () => {
+    const form = { ...defaultForm('demo'), name: 'x', auditEnabled: true };
+    expect(validate({ ...form, auditLog: 'ddl, -misc' }).auditLog).toBeUndefined();
+    expect(validate({ ...form, auditLog: 'ddl; drop' }).auditLog).toBeDefined();
+    expect(validate({ ...form, auditEnabled: false, auditLog: 'bogus' }).auditLog).toBeUndefined();
+  });
+
+  it('reads it from an existing cluster', () => {
+    expect(fromCluster(cluster({ 'pgaudit.log': 'ddl' }))).toMatchObject({ auditEnabled: true, auditLog: 'ddl' });
+    expect(fromCluster(cluster({ 'pgaudit.log': 'none' }))).toMatchObject({ auditEnabled: false, auditLog: 'ddl, role' });
+    expect(fromCluster(cluster())).toMatchObject({ auditEnabled: false });
+  });
+
+  it('patches only pgaudit.log, keeping other parameters', () => {
+    const on = fromCluster(cluster({ 'pgaudit.log': 'ddl', max_connections: '200' }));
+    expect(toEditPatch(on, { ...on, auditEnabled: false })).toEqual({
+      postgresql: { parameters: { 'pgaudit.log': null } },
+    });
+    expect(toEditPatch(on, { ...on, auditLog: 'all' })).toEqual({
+      postgresql: { parameters: { 'pgaudit.log': 'all' } },
+    });
+    const off = fromCluster(cluster({ max_connections: '200' }));
+    expect(toEditPatch(off, off)).toEqual({});
+    expect(toEditPatch(off, { ...off, auditEnabled: true })).toEqual({
+      postgresql: { parameters: { 'pgaudit.log': 'ddl, role' } },
+    });
+  });
+});

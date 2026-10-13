@@ -253,9 +253,8 @@ export const AuditLogPage = () => {
               title={`pgaudit is off for ${unaudited.join(', ')}`}
               description={
                 <>
-                  Set <Mono>spec.postgresql.parameters["pgaudit.log"]</Mono> (for example{' '}
-                  <Mono>"ddl, role"</Mono>, or <Mono>"write, ddl, role"</Mono>) on a cluster to record its SQL
-                  statements; CloudNativePG then loads pgaudit itself.
+                  Switch on <strong>Audit logging (pgaudit)</strong> in a cluster's Edit form (it sets{' '}
+                  <Mono>spec.postgresql.parameters["pgaudit.log"]</Mono>) to record its SQL statements.
                 </>
               }
             />

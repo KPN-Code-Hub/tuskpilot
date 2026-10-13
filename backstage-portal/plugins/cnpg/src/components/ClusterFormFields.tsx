@@ -27,6 +27,13 @@ function sizeHelp(size: ClusterSize | undefined, editing: boolean): string {
   return [size.description, tuned && `PostgreSQL tuned: ${tuned}.`].filter(Boolean).join('. ');
 }
 
+/** pgaudit.log presets; another value set with kubectl is kept as an extra option. */
+const AUDIT_PRESETS = [
+  { id: 'ddl, role', label: 'Schema and permission changes (ddl, role)' },
+  { id: 'write, ddl, role', label: 'Plus data changes (write, ddl, role)' },
+  { id: 'all', label: 'Every statement (all; verbose, costs performance)' },
+];
+
 /** Explains a field the edit form shows read-only. */
 const FIXED = 'Fixed after creation.';
 
@@ -474,6 +481,37 @@ export const ClusterFormFields = ({
           isSelected={form.dashboardEnabled}
           onChange={set('dashboardEnabled')}
         />
+      </Section>
+
+      <Section
+        title="Audit logging"
+        description="pgaudit records who ran which statement, on which object; the project's Audit logs page shows the records."
+      >
+        <Switch
+          label="Audit logging (pgaudit)"
+          isSelected={form.auditEnabled}
+          onChange={set('auditEnabled')}
+        />
+        {form.auditEnabled && (
+          <Select
+            label="What to record"
+            value={form.auditLog}
+            onChange={key => set('auditLog')(String(key))}
+            options={
+              AUDIT_PRESETS.some(p => p.id === form.auditLog)
+                ? AUDIT_PRESETS
+                : [...AUDIT_PRESETS, { id: form.auditLog, label: form.auditLog }]
+            }
+            description={err('auditLog')}
+            isInvalid={Boolean(err('auditLog'))}
+          />
+        )}
+        {editing && form.auditEnabled !== original!.auditEnabled && (
+          <Text variant="body-small" color="secondary">
+            {form.auditEnabled ? 'Turning it on' : 'Turning it off'} loads or unloads the pgaudit library: the instances
+            restart one by one, the primary last (switchover).
+          </Text>
+        )}
       </Section>
     </>
   );
