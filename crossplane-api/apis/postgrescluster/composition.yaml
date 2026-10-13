@@ -129,6 +129,16 @@ spec:
             {{- range (dig "conditions" (list) $cstatus) }}
             {{- if and (eq .type "Ready") (eq .status "True") }}{{ $clusterReady = true }}{{ end }}
             {{- end }}
+            {{- /* Works around a CNPG instance-manager bug (v1.30.1): on a token
+                 promotion the new postgresql.conf is written while the token is
+                 not yet verified, that pass returns early and the reload is lost.
+                 The new primary keeps its replica-cluster config hash, the operator
+                 waits for uniform hashes and never rolls the pending restarts out.
+                 Changing a placeholder GUC once lastPromotionToken is recorded makes
+                 every instance rewrite and reload its config, unblocking the rollout. */}}
+            {{- with (and .distributed (dig "lastPromotionToken" "" $cstatus)) }}
+            {{- $_ := set $params "cncp.last_promotion" (. | sha256sum | trunc 16) }}
+            {{- end }}
             ---
             apiVersion: postgresql.cnpg.io/v1
             kind: Cluster

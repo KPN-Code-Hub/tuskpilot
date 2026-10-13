@@ -118,6 +118,7 @@ status:
         readyInstances: 3
         instances: 3
         currentPrimary: orders-db-1
+        lastPromotionToken: eyJsc24iOiIwLzIwMDAwMDAifQ==
         conditions:
         - type: Ready
           status: 'True'

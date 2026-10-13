@@ -2,6 +2,7 @@
 
 usage: assert.py <case> <empty|observed> <render-output.yaml> <dashboard.json>
 """
+import hashlib
 import json
 import sys
 
@@ -150,6 +151,8 @@ else:
 
 # --- distributed topology
 TOKEN = "eyJsc24iOiIwLzMwMDAwMDAifQ=="
+# The recovery site's lastPromotionToken from an earlier promotion (observed/switchover.yaml).
+PREV_TOKEN = "eyJsc24iOiIwLzIwMDAwMDAifQ=="
 if GEO:
     main, replica = live("cluster")["spec"], live("recovery-cluster")["spec"]
     topo = {"orders-db", "orders-db-onprem-ams"}
@@ -198,6 +201,11 @@ if GEO:
     else:
         primary = exp[3]
         check(roles == {primary: "primary", ({PROTECTED, RECOVERY} - {primary}).pop(): "replica"}, f"roles {roles}")
+    # CNPG reload workaround: a member that recorded a promotion carries a
+    # placeholder GUC derived from it, so its instances reload their config.
+    marker = {"switchover/observed": (None, hashlib.sha256(PREV_TOKEN.encode()).hexdigest()[:16])}
+    got = tuple(s.get("postgresql", {}).get("parameters", {}).get("cncp.last_promotion") for s in (main, replica))
+    check(got == marker.get(f"{case}/{state}", (None, None)), f"cncp.last_promotion {got}")
 elif case not in ("noproject", "bucketpending", "projectbucket", "restored", "restorepending", "sizeunknown"):
     ext = [e["name"] for e in live("cluster")["spec"].get("externalClusters", [])]
     check("replica" not in live("cluster")["spec"] and ext == (["restore-source"] if "restore" in xr["spec"] else []),
@@ -255,7 +263,9 @@ if case != "sizeunknown":
             continue
         spec = live(key)["spec"]
         check(spec["resources"] == resources, f"{key}: resources {spec['resources']} != {resources}")
-        got = spec.get("postgresql", {}).get("parameters", {})
+        # cncp.last_promotion is the CNPG reload workaround, checked with the topology.
+        got = {k: v for k, v in spec.get("postgresql", {}).get("parameters", {}).items()
+               if k != "cncp.last_promotion"}
         user = xr["spec"].get("postgresql", {}).get("parameters", {})
         check(got == {**params, **user}, f"{key}: parameters {got} != size's under spec's {{**{params}, **{user}}}")
 if case == "sizechanged":
