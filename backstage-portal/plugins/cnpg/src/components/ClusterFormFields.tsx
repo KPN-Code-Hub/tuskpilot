@@ -226,55 +226,6 @@ export const ClusterFormFields = ({
       </Section>
 
       <Section
-        title="Extensions"
-        description={`Installed in the ${form.databaseName || 'app'} database (CREATE EXTENSION). pgvector adds vector similarity search for embeddings: AI, RAG and recommendations.`}
-      >
-        {extensionOptions.length ? (
-          <CheckboxGroup
-            aria-label="Extensions"
-            value={form.extensions}
-            // Catalog order, so the spec doesn't change with the click order.
-            onChange={v => set('extensions')(extensionOptions.map(e => e.name).filter(n => v.includes(n)))}
-          >
-            {extensionOptions.map(e => (
-              <Checkbox key={e.name} value={e.name}>
-                <Flex direction="column" gap="0">
-                  <Text>{e.displayName}</Text>
-                  {e.description && (
-                    <Text variant="body-small" color="secondary">
-                      {e.description}
-                    </Text>
-                  )}
-                </Flex>
-              </Checkbox>
-            ))}
-          </CheckboxGroup>
-        ) : (
-          <Text variant="body-small" color="secondary">
-            The platform offers no extensions (EnvironmentConfig postgres-extensions).
-          </Text>
-        )}
-        {form.extensions.includes(VECTOR_EXTENSION) && (!editing || !original!.extensions.includes(VECTOR_EXTENSION)) && (
-          <Text variant="body-small" color="secondary">
-            Building an HNSW index on many vectors uses a lot of memory (maintenance_work_mem): pick size M or
-            larger for millions of embeddings.
-          </Text>
-        )}
-        {removed.length > 0 && (
-          <Text variant="body-small" color="warning">
-            {removed.join(', ')} stay{removed.length === 1 ? 's' : ''} installed: dropping an extension also drops
-            the columns and indexes that use it, so do that with psql if you mean it.
-          </Text>
-        )}
-        {restarts.length > 0 && (
-          <Text variant="body-small" color="secondary">
-            {restarts.map(e => e.displayName).join(', ')} loads a library: the instances restart one by one, the
-            primary last (switchover).
-          </Text>
-        )}
-      </Section>
-
-      <Section
         title="Sites"
         description="The control plane runs no databases: the cluster runs in its project's protected location. With geo replication a replica cluster in the recovery location follows it through the backup object store, ready to take over."
       >
@@ -579,6 +530,55 @@ export const ClusterFormFields = ({
           <Text variant="body-small" color="secondary">
             {form.auditEnabled ? 'Turning it on' : 'Turning it off'} loads or unloads the pgaudit library: the instances
             restart one by one, the primary last (switchover).
+          </Text>
+        )}
+      </Section>
+
+      <Section
+        title="Extensions"
+        description={`Installed in the ${form.databaseName || 'app'} database (CREATE EXTENSION). pgvector adds vector similarity search for embeddings: AI, RAG and recommendations.`}
+      >
+        {extensionOptions.length ? (
+          <CheckboxGroup
+            aria-label="Extensions"
+            value={form.extensions}
+            // Catalog order, so the spec doesn't change with the click order.
+            onChange={v => set('extensions')(extensionOptions.map(e => e.name).filter(n => v.includes(n)))}
+          >
+            {extensionOptions.map(e => (
+              <Checkbox key={e.name} value={e.name}>
+                <Flex direction="column" gap="0">
+                  <Text>{e.displayName}</Text>
+                  {e.description && (
+                    <Text variant="body-small" color="secondary">
+                      {e.description}
+                    </Text>
+                  )}
+                </Flex>
+              </Checkbox>
+            ))}
+          </CheckboxGroup>
+        ) : (
+          <Text variant="body-small" color="secondary">
+            The platform offers no extensions (EnvironmentConfig postgres-extensions).
+          </Text>
+        )}
+        {form.extensions.includes(VECTOR_EXTENSION) && (!editing || !original!.extensions.includes(VECTOR_EXTENSION)) && (
+          <Text variant="body-small" color="secondary">
+            Building an HNSW index on many vectors uses a lot of memory (maintenance_work_mem): pick size M or
+            larger for millions of embeddings.
+          </Text>
+        )}
+        {removed.length > 0 && (
+          <Text variant="body-small" color="warning">
+            {removed.join(', ')} stay{removed.length === 1 ? 's' : ''} installed: dropping an extension also drops
+            the columns and indexes that use it, so do that with psql if you mean it.
+          </Text>
+        )}
+        {restarts.length > 0 && (
+          <Text variant="body-small" color="secondary">
+            {restarts.map(e => e.displayName).join(', ')} loads a library: the instances restart one by one, the
+            primary last (switchover).
           </Text>
         )}
       </Section>
