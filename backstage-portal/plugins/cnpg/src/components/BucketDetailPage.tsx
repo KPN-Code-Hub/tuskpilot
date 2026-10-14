@@ -185,6 +185,13 @@ export const BucketDetailPage = () => {
         {!error && !value && <Skeleton width="100%" height={240} />}
         {value && summary && (
           <Flex direction="column" gap="4">
+            {value.storeError && (
+              <Alert
+                status="warning"
+                title="Object store unreachable"
+                description={`Showing what the cluster knows of this bucket; its usage and folders need the object store. ${value.storeError}`}
+              />
+            )}
             {summary.state === 'orphaned' && (
               <Alert
                 status="warning"
@@ -200,7 +207,7 @@ export const BucketDetailPage = () => {
               <Fields
                 rows={[
                   ['Used by', usedBy],
-                  ['Endpoint', <Mono key="e">{`${value.endpoint}/${name}`}</Mono>],
+                  ['Endpoint', value.endpoint ? <Mono key="e">{`${value.endpoint}/${name}`}</Mono> : '-'],
                   ['Created', summary.createdAt ? `${new Date(summary.createdAt).toLocaleString()} (${age(summary.createdAt)} ago)` : '-'],
                   ['Objects', objects],
                   ['Size', size],
@@ -208,9 +215,11 @@ export const BucketDetailPage = () => {
                 ]}
               />
             </Panel>
-            <Panel title="Folders">
-              <FolderTable bucket={value} />
-            </Panel>
+            {!value.storeError && (
+              <Panel title="Folders">
+                <FolderTable bucket={value} />
+              </Panel>
+            )}
           </Flex>
         )}
       </Container>

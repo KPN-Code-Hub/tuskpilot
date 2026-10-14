@@ -7,7 +7,7 @@ import { ResponseError } from '@backstage/errors';
 import type {
   AuditLog,
   BucketDetails,
-  BucketSummary,
+  BucketList,
   ClusterConnection,
   ClusterSize,
   LocationHealth,
@@ -140,8 +140,8 @@ export interface CnpgApi {
   testLocationUpdate(name: string, request: LocationUpdate): Promise<LocationHealth>;
   updateLocation(name: string, request: LocationUpdate): Promise<LocationSummary>;
   deleteLocation(name: string): Promise<void>;
-  /** Every bucket on the COSI account; configured is false when the backend has no object store. */
-  listBuckets(): Promise<{ configured: boolean; items: BucketSummary[] }>;
+  /** Every bucket on the COSI account; only those the cluster knows when the store can't be read. */
+  listBuckets(): Promise<BucketList>;
   getBucket(name: string): Promise<BucketDetails>;
   /** Deletes an orphaned bucket and everything in it; 409 for one in use. */
   deleteBucket(name: string): Promise<void>;
@@ -309,7 +309,7 @@ export class CnpgClient implements CnpgApi {
   }
 
   listBuckets() {
-    return this.#request<{ configured: boolean; items: BucketSummary[] }>('/buckets');
+    return this.#request<BucketList>('/buckets');
   }
 
   getBucket(name: string) {

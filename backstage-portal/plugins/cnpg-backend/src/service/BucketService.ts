@@ -11,6 +11,7 @@ import {
   BucketDetails,
   BucketFolder,
   bucketFolder,
+  BucketList,
   bucketProject,
   isProjectBucket,
   BucketSummary,
@@ -45,7 +46,7 @@ export type StoreFactory = (
 ) => ObjectStore;
 
 interface CosiBucket {
-  metadata: { name: string };
+  metadata: { name: string; creationTimestamp?: string };
   spec?: { bucketClaim?: { namespace?: string; name?: string } };
   status?: { bucketID?: string };
 }
@@ -55,7 +56,14 @@ interface Refs {
   projects: Map<string, Project>;
   /** Bucket name -> COSI Bucket object. */
   cosi: Map<string, CosiBucket>;
+  /** Every bucket the cluster refers to, with when its COSI Bucket was made. */
+  known: Map<string, string | undefined>;
 }
+
+/** The store's buckets, or why they can't be listed. */
+type Listing =
+  | { store: ObjectStore; buckets: Array<{ name: string; createdAt?: string }> }
+  | { error: string };
 
 function usageOf(objects: StoredObject[], truncated: boolean): BucketUsage {
   let bytes = 0;
@@ -71,7 +79,8 @@ function usageOf(objects: StoredObject[], truncated: boolean): BucketUsage {
  * Every bucket on the object store account COSI provisions with, read with
  * the COSI driver's own keys (its credentials Secret). Each is matched to the
  * Project or COSI Bucket object that uses it; the rest are orphaned, and only
- * those can be deleted.
+ * those can be deleted. When the store can't be read, the buckets the cluster
+ * refers to are still listed, without usage.
  */
 export class BucketService {
   readonly #core?: CoreV1Api;
@@ -104,9 +113,14 @@ export class BucketService {
     return Boolean(this.#config);
   }
 
-  async list(): Promise<BucketSummary[]> {
-    const store = await this.#objectStore();
-    const [buckets, refs] = await Promise.all([store.listBuckets(), this.#refs()]);
+  async list(): Promise<BucketList> {
+    const [listing, refs] = await Promise.all([this.#listing(), this.#refs()]);
+    const configured = this.configured;
+    if ('error' in listing) {
+      const items = [...refs.known].map(([name, createdAt]) => this.#summary(name, createdAt, refs));
+      return { configured, items: items.sort((a, b) => a.name.localeCompare(b.name)), storeError: listing.error };
+    }
+    const { store, buckets } = listing;
     const summaries = await Promise.all(
       buckets.map(async b => {
         const summary = this.#summary(b.name, b.createdAt, refs);
@@ -118,12 +132,21 @@ export class BucketService {
         return summary;
       }),
     );
-    return summaries.sort((a, b) => a.name.localeCompare(b.name));
+    return { configured, items: summaries.sort((a, b) => a.name.localeCompare(b.name)) };
   }
 
   async get(name: string): Promise<BucketDetails> {
-    const store = await this.#objectStore();
-    const [buckets, refs] = await Promise.all([store.listBuckets(), this.#refs()]);
+    const [listing, refs] = await Promise.all([this.#listing(), this.#refs()]);
+    if ('error' in listing) {
+      if (!refs.known.has(name)) throw new ServiceUnavailableError(listing.error);
+      return {
+        summary: this.#summary(name, refs.known.get(name), refs),
+        endpoint: this.#config?.endpoint ?? '',
+        folders: [],
+        storeError: listing.error,
+      };
+    }
+    const { store, buckets } = listing;
     const bucket = buckets.find(b => b.name === name);
     if (!bucket) throw new NotFoundError(`Bucket ${name} not found`);
     const summary = this.#summary(name, bucket.createdAt, refs);
@@ -180,12 +203,26 @@ export class BucketService {
     return { ...base, state: 'orphaned', formerProject: bucketProject(name) };
   }
 
+  /** The store's buckets; an unconfigured or unreachable store is an error message, not a failure. */
+  async #listing(): Promise<Listing> {
+    if (!this.#config) return { error: NOT_CONFIGURED };
+    try {
+      const store = await this.#objectStore();
+      return { store, buckets: await store.listBuckets() };
+    } catch (e) {
+      const error = `Object store ${this.#config.endpoint} can't be read: ${(e as Error).message}`;
+      this.#logger.warn(error);
+      return { error };
+    }
+  }
+
   async #refs(): Promise<Refs> {
     const [projects, cosiBuckets] = await Promise.all([this.#listProjects(), this.#cosiBuckets()]);
     const byName = new Map(projects.map(p => [p.metadata.name, p]));
-    const refs: Refs = { projects: new Map(), cosi: new Map() };
+    const refs: Refs = { projects: new Map(), cosi: new Map(), known: new Map() };
     for (const b of cosiBuckets) {
       for (const id of [b.metadata.name, b.status?.bucketID]) if (id) refs.cosi.set(id, b);
+      refs.known.set(b.status?.bucketID ?? b.metadata.name, b.metadata.creationTimestamp);
       // A Project whose status doesn't name its bucket yet (or any more) still owns its claim's.
       const claimProject = b.spec?.bucketClaim?.namespace && byName.get(b.spec.bucketClaim.namespace);
       if (claimProject && isProjectBucket(b.metadata.name, claimProject.metadata.name)) {
@@ -193,7 +230,10 @@ export class BucketService {
       }
     }
     for (const p of projects) {
-      if (p.status?.backup?.bucket) refs.projects.set(p.status.backup.bucket, p);
+      const bucket = p.status?.backup?.bucket;
+      if (!bucket) continue;
+      refs.projects.set(bucket, p);
+      if (!refs.known.has(bucket)) refs.known.set(bucket, refs.cosi.get(bucket)?.metadata.creationTimestamp);
     }
     return refs;
   }

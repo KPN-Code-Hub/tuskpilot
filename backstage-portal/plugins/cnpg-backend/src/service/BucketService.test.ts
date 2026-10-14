@@ -66,7 +66,11 @@ function setup(options: { config?: BucketsConfig | null; cosi?: unknown[] | Erro
   };
   const cosi = options.cosi ?? [
     { metadata: { name: TEST }, spec: { bucketClaim: { namespace: 'zs3-cosi-test', name: 'claim-1' } } },
-    { metadata: { name: LIVE }, status: { bucketID: LIVE }, spec: { bucketClaim: { namespace: 'demo', name: 'backups' } } },
+    {
+      metadata: { name: LIVE, creationTimestamp: '2026-10-01T09:00:00Z' },
+      status: { bucketID: LIVE },
+      spec: { bucketClaim: { namespace: 'demo', name: 'backups' } },
+    },
   ];
   const custom = {
     listClusterCustomObject: jest.fn(async () => {
@@ -89,7 +93,9 @@ function setup(options: { config?: BucketsConfig | null; cosi?: unknown[] | Erro
 describe('BucketService', () => {
   it('lists every bucket with what uses it', async () => {
     const { service, storeFactory } = setup();
-    const items = await service.list();
+    const { configured, items, storeError } = await service.list();
+    expect(configured).toBe(true);
+    expect(storeError).toBeUndefined();
     expect(storeFactory).toHaveBeenCalledWith(CONFIG, { accessKeyId: 'ak', secretAccessKey: 'sk' });
     expect(items.map(b => [b.name, b.state, b.project ?? b.formerProject ?? b.cosiBucket])).toEqual([
       [OTHER, 'orphaned', undefined],
@@ -115,13 +121,13 @@ describe('BucketService', () => {
   it('shows a usage error instead of failing the list', async () => {
     const { service, store } = setup();
     store.listObjects.mockRejectedValueOnce(new Error('AccessDenied'));
-    const items = await service.list();
+    const { items } = await service.list();
     expect(items.filter(b => b.usageError)).toHaveLength(1);
   });
 
   it('treats every bucket as orphaned without COSI CRDs', async () => {
     const { service } = setup({ cosi: new ApiException(404, 'not found', {}, {}) });
-    const items = await service.list();
+    const { items } = await service.list();
     expect(items.find(b => b.name === TEST)?.state).toBe('orphaned');
     // The Project's status still names its bucket.
     expect(items.find(b => b.name === LIVE)?.state).toBe('project');
@@ -154,15 +160,44 @@ describe('BucketService', () => {
     expect(store.deleteBucket).toHaveBeenCalledWith(ORPHAN);
   });
 
-  it('is unavailable without configuration', async () => {
-    const { service } = setup({ config: null });
+  it('lists the buckets the cluster knows when the store is unreachable', async () => {
+    const { service, store } = setup();
+    store.listBuckets.mockRejectedValue(new Error('Connection timed out after 1000 ms'));
+    const { configured, items, storeError } = await service.list();
+    expect(configured).toBe(true);
+    expect(storeError).toMatch(/s3\.example\.com can't be read: Connection timed out/);
+    expect(items.map(b => [b.name, b.state, b.createdAt, b.usage])).toEqual([
+      [TEST, 'cosi', undefined, undefined],
+      [LIVE, 'project', '2026-10-01T09:00:00Z', undefined],
+    ]);
+    expect(store.listObjects).not.toHaveBeenCalled();
+  });
+
+  it('shows a known bucket without the store, and 503s an unknown one', async () => {
+    const { service, store } = setup();
+    store.listBuckets.mockRejectedValue(new Error('ECONNREFUSED'));
+    const details = await service.get(LIVE);
+    expect(details.summary).toMatchObject({ name: LIVE, state: 'project', project: 'demo' });
+    expect(details.folders).toEqual([]);
+    expect(details.storeError).toMatch(/ECONNREFUSED/);
+    await expect(service.get(ORPHAN)).rejects.toBeInstanceOf(ServiceUnavailableError);
+  });
+
+  it('lists the cluster\'s buckets without configuration, but deletes nothing', async () => {
+    const { service, storeFactory } = setup({ config: null });
     expect(service.configured).toBe(false);
-    await expect(service.list()).rejects.toBeInstanceOf(ServiceUnavailableError);
+    const { configured, items, storeError } = await service.list();
+    expect(configured).toBe(false);
+    expect(storeError).toMatch(/No object store configured/);
+    expect(items.map(b => b.name)).toEqual([TEST, LIVE]);
+    expect(storeFactory).not.toHaveBeenCalled();
+    await expect(service.delete(ORPHAN)).rejects.toBeInstanceOf(ServiceUnavailableError);
   });
 
   it('says which key the credentials Secret lacks', async () => {
     const { service, core } = setup();
     core.readNamespacedSecret.mockResolvedValueOnce({ data: { S3_ACCESS_KEY: 'YWs=' } } as any);
-    await expect(service.list()).rejects.toThrow(/has no S3_SECRET_KEY/);
+    const { storeError } = await service.list();
+    expect(storeError).toMatch(/has no S3_SECRET_KEY/);
   });
 });

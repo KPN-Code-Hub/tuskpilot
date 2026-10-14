@@ -112,7 +112,9 @@ const orphan = {
 function fakeBuckets(configured = true) {
   return {
     configured,
-    list: jest.fn(async () => [orphan]),
+    list: jest.fn(async () =>
+      configured ? { configured, items: [orphan] } : { configured, items: [], storeError: 'No object store configured' },
+    ),
     get: jest.fn(async (name: string) => {
       if (name === orphan.name) return { summary: orphan, endpoint: 'https://s3.example.com', folders: [] };
       throw new NotFoundError(`Bucket ${name} not found`);
@@ -776,12 +778,11 @@ describe('cnpg backend', () => {
       expect(res.body).toEqual({ configured: true, items: [orphan] });
     });
 
-    it('says so when no object store is configured', async () => {
+    it('says why the object store could not be read', async () => {
       const buckets = fakeBuckets(false);
       const server = await start(fakeK8s(), true, fakeLocations(), buckets);
       const res = await request(server).get('/api/cnpg/buckets');
-      expect(res.body).toEqual({ configured: false, items: [] });
-      expect(buckets.list).not.toHaveBeenCalled();
+      expect(res.body).toEqual({ configured: false, items: [], storeError: 'No object store configured' });
     });
 
     it('shows one bucket, 404 for an unknown one', async () => {

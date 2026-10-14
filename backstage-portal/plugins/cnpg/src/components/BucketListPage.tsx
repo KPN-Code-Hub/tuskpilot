@@ -31,7 +31,10 @@ const FILTERS: Array<{ id: Filter; label: string }> = [
   { id: 'cosi', label: 'COSI claim' },
 ];
 
-/** Every bucket on the object store account COSI provisions with, including orphaned ones. */
+/**
+ * Every bucket on the object store account COSI provisions with, including
+ * orphaned ones; only those the cluster knows when the store can't be read.
+ */
 export const BucketListPage = () => {
   const api = useApi(cnpgApiRef);
   const bucketLink = useRouteRef(bucketRouteRef);
@@ -118,10 +121,17 @@ export const BucketListPage = () => {
             <Alert
               status="info"
               title="No object store configured"
-              description="Set cnpg.buckets in the portal's app-config: the S3 endpoint and the COSI driver's credentials Secret."
+              description="Showing the buckets the cluster refers to. Set cnpg.buckets in the portal's app-config (the S3 endpoint and the COSI driver's credentials Secret) for their usage and orphaned buckets."
             />
           )}
-          {value?.configured !== false && (
+          {value?.configured && value.storeError && (
+            <Alert
+              status="warning"
+              title="Object store unreachable"
+              description={`Showing the buckets the cluster refers to, without usage; orphaned buckets can't be listed. ${value.storeError}`}
+            />
+          )}
+          {value?.configured !== false && !value?.storeError && (
             <div className="kpn-stats">
               {stats.map(s => (
                 <div key={s.label} className="kpn-stat">
@@ -132,7 +142,7 @@ export const BucketListPage = () => {
               ))}
             </div>
           )}
-          {value?.configured && (
+          {value && (
             <Flex gap="3" align="end">
               <Select
                 label="Show"

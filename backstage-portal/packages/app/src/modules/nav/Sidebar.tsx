@@ -43,7 +43,6 @@ const sections: Array<{ title: string; items: Item[] }> = [
       },
       { label: 'Volumes', to: `${CNPG}/volumes`, isActive: p => p.startsWith(`${CNPG}/volumes`) },
       { label: 'Buckets', to: `${CNPG}/buckets`, isActive: p => p.startsWith(`${CNPG}/buckets`) },
-      { label: 'Audit logs', to: `${CNPG}/audit`, isActive: p => p.startsWith(`${CNPG}/audit`) },
     ],
   },
   {
@@ -51,6 +50,12 @@ const sections: Array<{ title: string; items: Item[] }> = [
     items: [
       { label: 'PostgreSQL', to: CNPG, isActive: isClusterPath },
       { label: 'New cluster', to: `${CNPG}/create`, isActive: p => p.startsWith(`${CNPG}/create`) },
+    ],
+  },
+  {
+    title: 'Security',
+    items: [
+      { label: 'Audit logs', to: `${CNPG}/audit`, isActive: p => p.startsWith(`${CNPG}/audit`) },
     ],
   },
 ];

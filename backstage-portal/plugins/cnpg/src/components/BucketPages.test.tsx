@@ -72,6 +72,29 @@ describe('BucketListPage', () => {
     expect(table.getByText(ORPHAN).closest('a')).toHaveAttribute('href', `/cnpg/buckets/${ORPHAN}`);
   });
 
+  it('lists the cluster\'s buckets when the object store is unreachable', async () => {
+    const api: Partial<CnpgApi> = {
+      listBuckets: jest.fn(async () => ({
+        configured: true,
+        items: [{ name: LIVE, state: 'project' as const, project: 'demo' }],
+        storeError: 'Object store https://s3.example.com can\'t be read: Connection timed out after 1000 ms',
+      })),
+    };
+    await renderInTestApp(<BucketListPage />, apis(api) as any);
+    expect(await screen.findByText('Object store unreachable')).toBeInTheDocument();
+    expect(screen.getByText(/Connection timed out/)).toBeInTheDocument();
+    expect(within(screen.getByRole('grid')).getByText(LIVE)).toBeInTheDocument();
+  });
+
+  it('shows what the cluster knows of a bucket when the object store is unreachable', async () => {
+    const api: Partial<CnpgApi> = {
+      getBucket: jest.fn(async () => ({ ...details(buckets[0]), folders: [], storeError: 'ECONNREFUSED' })),
+    };
+    await renderDetail(LIVE, api);
+    expect(await screen.findByText('Object store unreachable')).toBeInTheDocument();
+    expect(screen.queryByText('Folders')).not.toBeInTheDocument();
+  });
+
   it('says when the backend has no object store', async () => {
     const api: Partial<CnpgApi> = { listBuckets: jest.fn(async () => ({ configured: false, items: [] })) };
     await renderInTestApp(<BucketListPage />, apis(api) as any);

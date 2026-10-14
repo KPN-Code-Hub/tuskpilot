@@ -27,6 +27,10 @@ export interface ObjectStore {
   deleteBucket(bucket: string): Promise<void>;
 }
 
+// A TCP handshake to a reachable store takes milliseconds; the SDK retries (3 attempts) on top of this.
+const CONNECT_TIMEOUT_MS = 1_000;
+const REQUEST_TIMEOUT_MS = 60_000;
+
 /** Parallel single-object deletes: DeleteObjects needs checksums not every S3 implementation takes. */
 const DELETE_CONCURRENCY = 16;
 
@@ -66,6 +70,8 @@ export class S3ObjectStore implements ObjectStore {
       region: options.region,
       credentials: { accessKeyId: options.accessKeyId, secretAccessKey: options.secretAccessKey },
       forcePathStyle: true,
+      // Fail fast when the endpoint can't be reached, instead of waiting out the OS's TCP timeout.
+      requestHandler: { connectionTimeout: CONNECT_TIMEOUT_MS, requestTimeout: REQUEST_TIMEOUT_MS },
       // Plain SigV4: S3-compatible stores (HyperStore) don't all take the newer checksum headers.
       requestChecksumCalculation: 'WHEN_REQUIRED',
       responseChecksumValidation: 'WHEN_REQUIRED',

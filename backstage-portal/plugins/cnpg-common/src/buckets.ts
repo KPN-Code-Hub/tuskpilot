@@ -48,7 +48,21 @@ export interface BucketFolder extends BucketUsage {
 export interface BucketDetails {
   summary: BucketSummary;
   endpoint: string;
+  /** Empty when the object store can't be read (storeError). */
   folders: BucketFolder[];
+  /** Why the object store couldn't be read: the summary is then only what the cluster knows. */
+  storeError?: string;
+}
+
+/**
+ * The bucket list. Without an object store (not configured, or unreachable:
+ * storeError) it holds only the buckets the cluster refers to, without usage,
+ * and no orphaned ones.
+ */
+export interface BucketList {
+  configured: boolean;
+  items: BucketSummary[];
+  storeError?: string;
 }
 
 /**

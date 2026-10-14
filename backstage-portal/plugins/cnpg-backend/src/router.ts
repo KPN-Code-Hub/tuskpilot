@@ -487,11 +487,7 @@ export async function createRouter(options: {
 
   router.get('/buckets', async (req, res) => {
     await authorize(req, cnpgBucketReadPermission);
-    if (!buckets.configured) {
-      res.json({ configured: false, items: [] });
-      return;
-    }
-    res.json({ configured: true, items: await buckets.list() });
+    res.json(await buckets.list());
   });
 
   router.get('/buckets/:name', async (req, res) => {
