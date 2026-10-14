@@ -36,6 +36,7 @@ import {
   PROJECT_VERSION,
   SIZES_GROUP,
   SIZES_NAME,
+  EXTENSIONS_NAME,
   SIZES_PLURAL,
   SIZES_VERSION,
   summarize,
@@ -400,13 +401,25 @@ export class CnpgKubernetesService {
    * name); undefined when there's none, so the form offers only custom resources.
    */
   async sizesCatalog(): Promise<unknown> {
+    return this.#environmentConfigData(SIZES_NAME);
+  }
+
+  /**
+   * data of the postgres-extensions EnvironmentConfig (the extensions a
+   * cluster may add); undefined when there's none.
+   */
+  async extensionsCatalog(): Promise<unknown> {
+    return this.#environmentConfigData(EXTENSIONS_NAME);
+  }
+
+  async #environmentConfigData(name: string): Promise<unknown> {
     try {
       const res = await this.#call(() =>
         this.#custom.getClusterCustomObject({
           group: SIZES_GROUP,
           version: SIZES_VERSION,
           plural: SIZES_PLURAL,
-          name: SIZES_NAME,
+          name,
         }),
       );
       return (res as { data?: unknown }).data;

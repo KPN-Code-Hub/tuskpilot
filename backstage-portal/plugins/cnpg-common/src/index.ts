@@ -11,4 +11,5 @@ export * from './restore';
 export * from './buckets';
 export * from './volumes';
 export * from './sizes';
+export * from './extensions';
 export * from './audit';

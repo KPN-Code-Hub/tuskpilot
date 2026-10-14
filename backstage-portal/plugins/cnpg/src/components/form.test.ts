@@ -321,3 +321,35 @@ describe('audit logging', () => {
     });
   });
 });
+
+describe('extensions', () => {
+  const cluster = (extensions?: string[]) =>
+    ({
+      apiVersion: 'cnpg.cncp.nl/v1alpha1',
+      kind: 'PostgresCluster',
+      metadata: { name: 'docs-db', namespace: 'demo' },
+      spec: { postgresVersion: 17, instances: 3, database: { name: 'docs', owner: 'docs', ...(extensions ? { extensions } : {}) } },
+    }) as PostgresCluster;
+
+  it('lists them in the bootstrap database of a new cluster, only when picked', () => {
+    expect(toSpec({ ...defaultForm('demo'), name: 'x' })).toMatchObject({ database: { name: 'app', owner: 'app' } });
+    expect(toSpec({ ...defaultForm('demo'), name: 'x' }).database).not.toHaveProperty('extensions');
+    expect(toSpec({ ...defaultForm('demo'), name: 'x', extensions: ['vector'] })).toMatchObject({
+      database: { name: 'app', owner: 'app', extensions: ['vector'] },
+    });
+  });
+
+  it('reads them from an existing cluster', () => {
+    expect(fromCluster(cluster(['vector', 'pg_trgm'])).extensions).toEqual(['vector', 'pg_trgm']);
+    expect(fromCluster(cluster()).extensions).toEqual([]);
+  });
+
+  it('patches only the list, and the empty list when the last one goes', () => {
+    const none = fromCluster(cluster());
+    expect(toEditPatch(none, none)).toEqual({});
+    expect(toEditPatch(none, { ...none, extensions: ['vector'] })).toEqual({ database: { extensions: ['vector'] } });
+    const some = fromCluster(cluster(['vector', 'pg_trgm']));
+    expect(toEditPatch(some, { ...some, extensions: ['vector'] })).toEqual({ database: { extensions: ['vector'] } });
+    expect(toEditPatch(some, { ...some, extensions: [] })).toEqual({ database: { extensions: [] } });
+  });
+});

@@ -19,6 +19,7 @@ const cluster = (over: Partial<PostgresClusterSummary>): PostgresClusterSummary 
   deleting: false,
   pooler: true,
   backup: false,
+  extensions: [],
   location: 'ske',
   geoReplication: false,
   primaryLocation: 'ske',
@@ -31,7 +32,14 @@ describe('ClusterListPage', () => {
     const api: Partial<CnpgApi> = {
       listClusters: jest.fn(async () => [
         cluster({}),
-        cluster({ name: 'payments-db', namespace: 'payments', ready: false, readyInstances: 1, backup: true }),
+        cluster({
+          name: 'payments-db',
+          namespace: 'payments',
+          ready: false,
+          readyInstances: 1,
+          backup: true,
+          extensions: ['pg_trgm', 'vector'],
+        }),
       ]),
     };
     await renderInTestApp(<ClusterListPage />, {
@@ -52,7 +60,7 @@ describe('ClusterListPage', () => {
     expect(screen.getByText('Needs attention')).toBeInTheDocument();
     expect(screen.getByText('4/6')).toBeInTheDocument();
     expect(screen.getByText('pooler')).toBeInTheDocument();
-    expect(screen.getByText('pooler, backups')).toBeInTheDocument();
+    expect(screen.getByText('pooler, backups, pgvector')).toBeInTheDocument();
     expect(screen.getByText('Create cluster')).toBeInTheDocument();
   });
 });

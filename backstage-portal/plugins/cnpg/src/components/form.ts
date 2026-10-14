@@ -30,6 +30,8 @@ export interface ClusterForm {
   memory: string;
   databaseName: string;
   databaseOwner: string;
+  /** Extensions in the bootstrap database (spec.database.extensions), e.g. vector. */
+  extensions: string[];
   podAntiAffinityType: 'preferred' | 'required';
   zoneSpread: boolean;
   synchronousReplicas: number;
@@ -73,6 +75,7 @@ export const defaultForm = (namespace = ''): ClusterForm => ({
   memory: '1Gi',
   databaseName: 'app',
   databaseOwner: 'app',
+  extensions: [],
   podAntiAffinityType: 'preferred',
   zoneSpread: true,
   synchronousReplicas: 0,
@@ -158,7 +161,12 @@ export function toSpec(f: ClusterForm, { explicit = false } = {}): Record<string
             limits: { memory: f.memory },
           },
         }),
-    database: { name: f.databaseName, owner: f.databaseOwner },
+    database: {
+      name: f.databaseName,
+      owner: f.databaseOwner,
+      // explicit: an edit that unticks the last one sends the empty list.
+      ...(f.extensions.length || explicit ? { extensions: f.extensions } : {}),
+    },
     highAvailability: {
       podAntiAffinityType: f.podAntiAffinityType,
       zoneSpread: f.zoneSpread,
@@ -269,6 +277,7 @@ export function fromCluster(cluster: PostgresCluster): ClusterForm {
     memory: resources.requests?.memory ?? d.memory,
     databaseName: spec.database?.name ?? d.databaseName,
     databaseOwner: spec.database?.owner ?? d.databaseOwner,
+    extensions: Array.isArray(spec.database?.extensions) ? spec.database.extensions : d.extensions,
     podAntiAffinityType: ha.podAntiAffinityType ?? d.podAntiAffinityType,
     zoneSpread: ha.zoneSpread ?? d.zoneSpread,
     synchronousReplicas: ha.synchronousReplicas ?? d.synchronousReplicas,

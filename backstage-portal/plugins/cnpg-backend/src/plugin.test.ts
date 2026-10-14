@@ -69,6 +69,12 @@ function fakeK8s() {
     applyProject: jest.fn(async (o: any) => ({ ...demoProject, metadata: { name: o.name } })),
     patch: jest.fn(async () => ordersDb),
     patchProject: jest.fn(async () => demoProject),
+    extensionsCatalog: jest.fn(async (): Promise<unknown> => ({
+      extensions: [
+        { name: 'vector', displayName: 'pgvector', description: 'Vector similarity search' },
+        { name: 'Bad Name' },
+      ],
+    })),
     deleteProject: jest.fn(async () => undefined),
     logs: jest.fn(async (_ns: string, _name: string, o: any, _kubeConfigFor?: unknown) => ({
       pod: o.pod,
@@ -191,6 +197,18 @@ async function start(
 }
 
 describe('cnpg backend', () => {
+  it('serves the extension catalog, empty without one', async () => {
+    const k8s = fakeK8s();
+    const server = await start(k8s);
+    const res = await request(server).get('/api/cnpg/extensions');
+    expect(res.status).toBe(200);
+    expect(res.body.items).toEqual([
+      { name: 'vector', displayName: 'pgvector', description: 'Vector similarity search', parameters: {} },
+    ]);
+    k8s.extensionsCatalog.mockResolvedValueOnce(undefined);
+    expect((await request(server).get('/api/cnpg/extensions')).body.items).toEqual([]);
+  });
+
   it('lists clusters as summaries', async () => {
     const server = await start(fakeK8s());
     const res = await request(server).get('/api/cnpg/clusters');

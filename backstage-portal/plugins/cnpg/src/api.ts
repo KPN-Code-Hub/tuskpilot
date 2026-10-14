@@ -9,6 +9,7 @@ import type {
   BucketDetails,
   BucketList,
   ClusterConnection,
+  ClusterExtension,
   ClusterSize,
   LocationHealth,
   LocationSpec,
@@ -100,6 +101,8 @@ export interface CnpgApi {
   getConfig(): Promise<CnpgPortalConfig>;
   /** The sizes (SKUs) spec.size can name, in catalog order; empty without a catalog. */
   listSizes(): Promise<ClusterSize[]>;
+  /** The extensions a cluster may add to its databases, in catalog order; empty without a catalog. */
+  listExtensions(): Promise<ClusterExtension[]>;
   listClusters(namespace?: string): Promise<PostgresClusterSummary[]>;
   getCluster(namespace: string, name: string): Promise<PostgresClusterDetails>;
   createCluster(request: CreateClusterRequest): Promise<PostgresCluster>;
@@ -169,6 +172,10 @@ export class CnpgClient implements CnpgApi {
 
   async listSizes() {
     return (await this.#request<{ items: ClusterSize[] }>('/sizes')).items;
+  }
+
+  async listExtensions() {
+    return (await this.#request<{ items: ClusterExtension[] }>('/extensions')).items;
   }
 
   async listClusters(namespace?: string) {

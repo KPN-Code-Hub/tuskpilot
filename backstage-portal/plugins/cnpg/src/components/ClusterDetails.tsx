@@ -162,6 +162,11 @@ export const ClusterDetails = ({ details }: { details: PostgresClusterDetails })
     .join(', ');
   // The size's setting, under the cluster's own (as the composition merges them).
   const auditLog = pgauditLog({ ...status.sizing?.parameters, ...spec.postgresql?.parameters });
+  // Each database's extensions: the bootstrap database's, then databases[]'.
+  const extensions = [
+    { db: spec.database?.name ?? 'app', names: spec.database?.extensions },
+    ...(spec.databases ?? []).map((d: any) => ({ db: d.name, names: d.extensions })),
+  ].filter(d => Array.isArray(d.names) && d.names.length);
   const ns = summary.namespace;
   const h = health(summary);
 
@@ -229,6 +234,21 @@ export const ClusterDetails = ({ details }: { details: PostgresClusterDetails })
                     : summary.primaryLocation] as [string, ReactNode]]
                 : []),
               ['Database', `${spec.database?.name ?? 'app'} (owner ${spec.database?.owner ?? 'app'})`],
+              [
+                'Extensions',
+                extensions.length ? (
+                  <Flex direction="column" gap="0">
+                    {extensions.map(d => (
+                      <Mono key={d.db}>
+                        {extensions.length > 1 || d.db !== (spec.database?.name ?? 'app') ? `${d.db}: ` : ''}
+                        {d.names.join(', ')}
+                      </Mono>
+                    ))}
+                  </Flex>
+                ) : (
+                  'none'
+                ),
+              ],
               ...(details.externalHost
                 ? [['External (rw)', <Mono>{details.externalHost}:5432</Mono>] as [string, ReactNode]]
                 : []),

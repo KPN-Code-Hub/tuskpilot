@@ -44,6 +44,7 @@ import {
   promotionPatch,
   PostgresClusterSummary,
   parseSizes,
+  parseExtensions,
   projectLocations,
   RestoreSource,
   restoreSpec,
@@ -256,6 +257,12 @@ export async function createRouter(options: {
   router.get('/sizes', async (req, res) => {
     await authorize(req, cnpgClusterReadPermission);
     res.json({ items: parseSizes(await k8s.sizesCatalog()) });
+  });
+
+  // The extensions a cluster may add to its databases; empty without a catalog.
+  router.get('/extensions', async (req, res) => {
+    await authorize(req, cnpgClusterReadPermission);
+    res.json({ items: parseExtensions(await k8s.extensionsCatalog()) });
   });
 
   router.get('/namespaces', async (req, res) => {

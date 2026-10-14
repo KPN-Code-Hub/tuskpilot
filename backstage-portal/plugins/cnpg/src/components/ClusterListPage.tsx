@@ -17,6 +17,7 @@ import {
 import {
   cnpgClusterCreatePermission,
   type PostgresClusterSummary,
+  VECTOR_EXTENSION,
 } from '@internal/backstage-plugin-cnpg-common';
 import { useMemo, useState } from 'react';
 import useAsyncRetry from 'react-use/esm/useAsyncRetry';
@@ -113,7 +114,11 @@ export const ClusterListPage = () => {
       label: 'Features',
       cell: c => (
         <CellText
-          title={[c.pooler && 'pooler', c.backup && 'backups'].filter(Boolean).join(', ') || '-'}
+          title={
+            [c.pooler && 'pooler', c.backup && 'backups', c.extensions.includes(VECTOR_EXTENSION) && 'pgvector']
+              .filter(Boolean)
+              .join(', ') || '-'
+          }
         />
       ),
     },

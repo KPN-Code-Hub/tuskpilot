@@ -5,6 +5,7 @@
  * reads or sends.
  */
 
+import { specExtensions } from './extensions';
 import type { ClusterResources } from './sizes';
 
 export const XR_GROUP = 'cnpg.cncp.nl';
@@ -114,6 +115,8 @@ export interface PostgresClusterSummary {
   owner?: string;
   pooler: boolean;
   backup: boolean;
+  /** Every extension its databases list (spec.database.extensions, spec.databases[].extensions). */
+  extensions: string[];
   /** uid of the composed GrafanaDashboard; unset when the dashboard is disabled. */
   dashboardUid?: string;
   /** The protected location, where the cluster was created; empty until known. */
@@ -216,6 +219,7 @@ export function summarize(cluster: PostgresCluster, project?: Project): Postgres
     owner: metadata.labels?.['backstage.io/owner'],
     pooler: Boolean(spec.pooler?.enabled),
     backup: Boolean(spec.backup?.enabled),
+    extensions: specExtensions(spec),
     dashboardUid: status?.monitoring?.dashboardUid || undefined,
     ...clusterSites(cluster, project),
     createdAt: metadata.creationTimestamp,

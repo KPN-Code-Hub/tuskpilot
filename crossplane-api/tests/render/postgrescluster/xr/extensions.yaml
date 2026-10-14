@@ -1,0 +1,18 @@
+# Extensions from the postgres-extensions catalog: pgvector and pg_trgm in the
+# bootstrap database (a CNPG Database of its own, never dropped), and
+# pg_stat_statements in an extra database, which brings the setting that
+# makes CNPG preload its library.
+apiVersion: cnpg.cncp.nl/v1alpha1
+kind: PostgresCluster
+metadata:
+  name: docs-db
+  namespace: demo
+spec:
+  database:
+    name: docs
+    owner: docs
+    extensions: [vector, pg_trgm]
+  databases:
+    - name: analytics
+      owner: docs
+      extensions: [pg_stat_statements]

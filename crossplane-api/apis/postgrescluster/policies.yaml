@@ -1,4 +1,5 @@
-# Guardrails for PostgresClusters (ValidatingAdmissionPolicy, Kubernetes >= 1.30).
+# Guardrails for PostgresClusters (ValidatingAdmissionPolicy, Kubernetes >= 1.30):
+# the size and the extensions must be in their catalogs.
 #
 # spec.size names a size in the EnvironmentConfig postgres-sizes (the
 # policy's parameter). A new cluster, or a size change, must name one that's
@@ -48,4 +49,68 @@ spec:
   validationActions: [Deny]
   paramRef:
     name: postgres-sizes
+    parameterNotFoundAction: Allow
+---
+# Extensions (spec.database.extensions, spec.databases[].extensions) must be
+# in the EnvironmentConfig postgres-extensions (the policy's parameter): what
+# the image catalog ships and the platform supports. An extension a cluster
+# already lists stays allowed after it's removed from the catalog. Without
+# the catalog the policy lets everything through; CNPG then reports an
+# extension the image lacks on the Database.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: cnpg.cncp.nl-postgrescluster-extensions
+spec:
+  failurePolicy: Fail
+  paramKind:
+    apiVersion: apiextensions.crossplane.io/v1beta1
+    kind: EnvironmentConfig
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [cnpg.cncp.nl]
+        apiVersions: ["*"]
+        resources: [postgresclusters]
+        operations: [CREATE, UPDATE]
+  variables:
+    - name: names
+      expression: >-
+        has(params.data) && has(params.data.extensions)
+        ? params.data.extensions.filter(e, has(e.name)).map(e, string(e.name))
+        : []
+    # Every extensions list of a spec: the bootstrap database's, then databases[]'.
+    - name: requested
+      expression: >-
+        (has(object.spec.database) && has(object.spec.database.extensions)
+          ? [object.spec.database.extensions] : [])
+        + (has(object.spec.databases)
+          ? object.spec.databases.map(d, has(d.extensions) ? d.extensions : []) : [])
+    - name: had
+      expression: >-
+        oldObject == null ? [] :
+        (has(oldObject.spec.database) && has(oldObject.spec.database.extensions)
+          ? [oldObject.spec.database.extensions] : [])
+        + (has(oldObject.spec.databases)
+          ? oldObject.spec.databases.map(d, has(d.extensions) ? d.extensions : []) : [])
+    - name: rejected
+      expression: >-
+        variables.requested
+        .map(l, l.filter(e, !(e in variables.names) && !variables.had.exists(o, e in o)).join(', '))
+        .filter(s, s != '').join(', ')
+  validations:
+    - expression: "variables.rejected == ''"
+      messageExpression: >-
+        'extensions not in the postgres-extensions catalog: ' + variables.rejected
+        + '; choose from: ' + variables.names.join(', ')
+      reason: Invalid
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: cnpg.cncp.nl-postgrescluster-extensions
+spec:
+  policyName: cnpg.cncp.nl-postgrescluster-extensions
+  validationActions: [Deny]
+  paramRef:
+    name: postgres-extensions
     parameterNotFoundAction: Allow

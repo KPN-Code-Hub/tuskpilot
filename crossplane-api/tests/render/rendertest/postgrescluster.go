@@ -51,6 +51,17 @@ var pgExpected = map[string]map[string]bool{
 	"sizechanged":    set("cluster", "podmonitor", "prometheusrule", "dashboard"),
 	// An unknown size: nothing placed until it names one in the catalog.
 	"sizeunknown": set("dashboard"),
+	// The bootstrap database's extensions get a Database of their own.
+	"extensions": set("cluster", "podmonitor", "prometheusrule", "dashboard", "database-docs", "database-analytics"),
+	// ... unless databases[] lists that database.
+	"extensionslisted": set("cluster", "podmonitor", "prometheusrule", "dashboard", "database-app"),
+}
+
+// The postgresql.conf settings the extensions in use bring from the
+// postgres-extensions catalog, under the size's and spec's.
+var pgExtensionParams = map[string]M{
+	"extensions": {"pg_stat_statements.track": "top"},
+	"production": {"pg_stat_statements.track": "top"},
 }
 
 const (
@@ -371,15 +382,40 @@ func assertPostgresCluster(r *render, dashboardSrc string) {
 			}
 			user := mp(xr, "spec", "postgresql", "parameters")
 			merged := M{}
+			for k, v := range pgExtensionParams[kase] {
+				merged[k] = v
+			}
 			for k, v := range sz.params {
 				merged[k] = v
 			}
 			for k, v := range user {
 				merged[k] = v
 			}
-			check(equal(got, merged), "%s: parameters %s != size's under spec's %s", key, repr(got), repr(merged))
+			check(equal(got, merged), "%s: parameters %s != extensions' under size's under spec's %s", key, repr(got), repr(merged))
 		}
 	}
+	// --- extensions: one CNPG Database per database, the bootstrap one never dropped.
+	wantDBs := map[string]M{
+		"extensions": {
+			"database-docs":      M{"name": "docs", "owner": "docs", "reclaim": "retain", "extensions": L{"vector", "pg_trgm"}},
+			"database-analytics": M{"name": "analytics", "owner": "docs", "reclaim": "retain", "extensions": L{"pg_stat_statements"}},
+		},
+		"extensionslisted": {
+			"database-app": M{"name": "app", "owner": "app", "reclaim": "retain", "extensions": L{"pg_trgm"}},
+		},
+	}[kase]
+	for key, want := range wantDBs {
+		spec := mp(r.live(key), "spec")
+		var exts L
+		for _, e := range list(spec, "extensions") {
+			check(str(e, "ensure") == "present", "%s: extension %s not ensured present", key, str(e, "name"))
+			exts = append(exts, str(e, "name"))
+		}
+		got := M{"name": str(spec, "name"), "owner": str(spec, "owner"), "reclaim": str(spec, "databaseReclaimPolicy"), "extensions": exts}
+		check(equal(got, want), "%s: %s != %s", key, repr(got), repr(want))
+		check(str(spec, "cluster", "name") == name, "%s: cluster.name", key)
+	}
+
 	if kase == "sizechanged" {
 		check(strings.Contains(str(status, "message"), "size huge is not in the postgres-sizes catalog; the instances keep running as m"),
 			"message %s", repr(get(status, "message")))

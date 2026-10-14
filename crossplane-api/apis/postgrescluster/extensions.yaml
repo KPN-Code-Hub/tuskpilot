@@ -1,0 +1,63 @@
+# The extensions a PostgresCluster may install in its databases
+# (spec.database.extensions, spec.databases[].extensions), read by the
+# composition, the extension admission policy and the portal.
+# install/install.sh applies this once; after that the object on the control
+# plane is the catalog, edit it there.
+#
+# Per extension:
+#   name          what the extensions lists say (CREATE EXTENSION <name>)
+#   displayName   label in the portal
+#   description   one line in the portal
+#   parameters    optional postgresql.conf settings it needs, e.g. one that
+#                 makes CNPG load its library (shared_preload_libraries).
+#                 spec.postgresql.parameters and the size's settings win over
+#                 these. Adding or removing such an extension restarts the
+#                 instances one by one, the primary last (switchover)
+#
+# Only list extensions every image in the image catalog ships: the default
+# postgresql-standard-trixie images carry the contrib extensions plus
+# pgvector and pgaudit (pgaudit is switched on with the pgaudit.log
+# parameter, not listed here). Removing an extension from the catalog only
+# blocks clusters from adding it; databases that have it keep it.
+# The portal lists the extensions in this order.
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: postgres-extensions
+data:
+  extensions:
+    - name: vector
+      displayName: pgvector
+      description: Vector similarity search for embeddings (AI, RAG, recommendations)
+    - name: pg_stat_statements
+      displayName: pg_stat_statements
+      description: Execution statistics of every SQL statement
+      parameters:
+        pg_stat_statements.track: top
+    - name: pg_trgm
+      displayName: pg_trgm
+      description: Trigram matching for fuzzy text search and LIKE indexes
+    - name: pgcrypto
+      displayName: pgcrypto
+      description: Hashing and encryption functions
+    - name: citext
+      displayName: citext
+      description: Case-insensitive text type
+    - name: hstore
+      displayName: hstore
+      description: Key-value pairs in a single column
+    - name: uuid-ossp
+      displayName: uuid-ossp
+      description: UUID generation functions
+    - name: btree_gin
+      displayName: btree_gin
+      description: B-tree behaviour in GIN indexes
+    - name: btree_gist
+      displayName: btree_gist
+      description: B-tree behaviour in GiST indexes, for exclusion constraints
+    - name: unaccent
+      displayName: unaccent
+      description: Text search dictionary that removes accents
+    - name: fuzzystrmatch
+      displayName: fuzzystrmatch
+      description: Similarity and distance between strings (Levenshtein, Soundex)

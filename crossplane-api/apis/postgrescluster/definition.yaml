@@ -314,6 +314,16 @@ spec:
                     localeCType:
                       type: string
                       default: C
+                    extensions:
+                      type: array
+                      description: >-
+                        Extensions to ensure present in this database, e.g. [vector]. Each must be in the
+                        postgres-extensions catalog. Removing one from the list leaves it installed.
+                      maxItems: 32
+                      items:
+                        type: string
+                        pattern: '^[a-z0-9_-]+$'
+                      x-kubernetes-list-type: set
                 databases:
                   type: array
                   description: Additional databases managed declaratively (postgresql.cnpg.io Database).
@@ -330,9 +340,13 @@ spec:
                         description: Role owning the database. Must exist (bootstrap owner, or one of roles[]).
                       extensions:
                         type: array
-                        description: Extensions to ensure present, e.g. [pg_stat_statements, vector].
+                        description: >-
+                          Extensions to ensure present, e.g. [pg_stat_statements, vector]. Each must be
+                          in the postgres-extensions catalog. Removing one from the list leaves it installed.
+                        maxItems: 32
                         items:
                           type: string
+                          pattern: '^[a-z0-9_-]+$'
                       reclaimPolicy:
                         type: string
                         description: Whether to drop the database in PostgreSQL when it is removed from this list.

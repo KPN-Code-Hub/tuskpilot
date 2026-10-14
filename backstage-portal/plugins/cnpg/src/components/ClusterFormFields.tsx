@@ -1,8 +1,10 @@
-import { NumberField, Select, Switch, Text, TextField } from '@backstage/ui';
+import { Checkbox, CheckboxGroup, Flex, NumberField, Select, Switch, Text, TextField } from '@backstage/ui';
 import {
+  ClusterExtension,
   ClusterSize,
   ProjectSummary,
   sizeLabel,
+  VECTOR_EXTENSION,
 } from '@internal/backstage-plugin-cnpg-common';
 import { Section } from './common';
 import { ClusterForm, selectSize } from './form';
@@ -59,6 +61,7 @@ export const ClusterFormFields = ({
   err,
   storageClasses,
   sizes = [],
+  extensions: catalog = [],
   projects,
   onSelectProject,
   original,
@@ -71,6 +74,8 @@ export const ClusterFormFields = ({
   storageClasses: string[];
   /** The size catalog; without one only custom resources are offered. */
   sizes?: ClusterSize[];
+  /** The extension catalog; without one only the extensions the cluster has are shown. */
+  extensions?: ClusterExtension[];
   projects?: ProjectSummary[];
   onSelectProject?: (name: string) => void;
   original?: ClusterForm;
@@ -98,6 +103,21 @@ export const ClusterFormFields = ({
         ? `Switches the primary back to ${sites.protected} first, then removes the replica cluster.`
         : 'Needs backups: the replica cluster replays the WAL archive, so the sites need no network path to each other.';
   }
+
+  // The catalog's extensions, plus any the cluster has that it no longer lists.
+  const extensionOptions: ClusterExtension[] = [
+    ...catalog,
+    ...form.extensions
+      .filter(name => !catalog.some(e => e.name === name))
+      .map(name => ({ name, displayName: name, description: 'Not in the catalog: can be removed, not added again.', parameters: {} })),
+  ];
+  const removed = editing ? original!.extensions.filter(e => !form.extensions.includes(e)) : [];
+  // Extensions that make CNPG load a library: adding or removing one restarts the instances.
+  const restarts = editing
+    ? catalog.filter(
+        e => Object.keys(e.parameters).length && original!.extensions.includes(e.name) !== form.extensions.includes(e.name),
+      )
+    : [];
 
   let storageClassField;
   if (editing) {
@@ -203,6 +223,55 @@ export const ClusterFormFields = ({
           }
           isInvalid={Boolean(err('databaseName'))}
         />
+      </Section>
+
+      <Section
+        title="Extensions"
+        description={`Installed in the ${form.databaseName || 'app'} database (CREATE EXTENSION). pgvector adds vector similarity search for embeddings: AI, RAG and recommendations.`}
+      >
+        {extensionOptions.length ? (
+          <CheckboxGroup
+            aria-label="Extensions"
+            value={form.extensions}
+            // Catalog order, so the spec doesn't change with the click order.
+            onChange={v => set('extensions')(extensionOptions.map(e => e.name).filter(n => v.includes(n)))}
+          >
+            {extensionOptions.map(e => (
+              <Checkbox key={e.name} value={e.name}>
+                <Flex direction="column" gap="0">
+                  <Text>{e.displayName}</Text>
+                  {e.description && (
+                    <Text variant="body-small" color="secondary">
+                      {e.description}
+                    </Text>
+                  )}
+                </Flex>
+              </Checkbox>
+            ))}
+          </CheckboxGroup>
+        ) : (
+          <Text variant="body-small" color="secondary">
+            The platform offers no extensions (EnvironmentConfig postgres-extensions).
+          </Text>
+        )}
+        {form.extensions.includes(VECTOR_EXTENSION) && (!editing || !original!.extensions.includes(VECTOR_EXTENSION)) && (
+          <Text variant="body-small" color="secondary">
+            Building an HNSW index on many vectors uses a lot of memory (maintenance_work_mem): pick size M or
+            larger for millions of embeddings.
+          </Text>
+        )}
+        {removed.length > 0 && (
+          <Text variant="body-small" color="warning">
+            {removed.join(', ')} stay{removed.length === 1 ? 's' : ''} installed: dropping an extension also drops
+            the columns and indexes that use it, so do that with psql if you mean it.
+          </Text>
+        )}
+        {restarts.length > 0 && (
+          <Text variant="body-small" color="secondary">
+            {restarts.map(e => e.displayName).join(', ')} loads a library: the instances restart one by one, the
+            primary last (switchover).
+          </Text>
+        )}
       </Section>
 
       <Section

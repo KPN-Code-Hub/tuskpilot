@@ -43,6 +43,7 @@ the control plane.
 | `barmancloud.cnpg.io/v1 ObjectStore` + `ScheduledBackup` | `backup.enabled` | Barman Cloud **plugin**, replacing the deprecated in-tree `barmanObjectStore`. WAL archiving, an immediate first base backup, then on schedule, with retention. |
 | `barmancloud.cnpg.io/v1 ObjectStore` `<name>-restore` (protected site) | `restore` | The backup store the cluster restores from, read-only (no retention policy). See [Restore](#postgrescluster-restore). |
 | `postgresql.cnpg.io/v1 Database` (per entry) | `databases[]` | Declarative extra databases and extensions |
+| `postgresql.cnpg.io/v1 Database` `<name>-<database>` | `database.extensions` | The bootstrap database's extensions, unless a `databases[]` entry manages that database. `databaseReclaimPolicy: retain`: removing it never drops the database. See [Extensions](#extensions). |
 | `postgresql.cnpg.io/v1 Pooler` (rw, optionally ro) | `pooler.enabled` | PgBouncer with anti-affinity |
 | `monitoring.coreos.com/v1 PodMonitor` (instances, poolers) | `monitoring.enabled` (default) | Exposes the Prometheus metrics: the CNPG exporter on `:9187`, PgBouncer on `:9127`. Replaces the deprecated `Cluster.spec.monitoring.enablePodMonitor`. |
 | `monitoring.coreos.com/v1 PrometheusRule` | `monitoring.prometheusRule.enabled` (default) | The 19 upstream CNPG alerts, scoped to this cluster; `excludeRules` drops some |
@@ -54,7 +55,7 @@ The XR's `status` mirrors CNPG (read back through each `Object`'s `status.atProv
 uid. A `PostgresReady` condition sits next to Crossplane's own `Ready`/`Synced`.
 
 **Changing a live cluster**: everything except `postgresVersion` (forward only, a major upgrade),
-`database`, `restore` and the storage classes can change in place. The XRD lets volumes (`storage`, `walStorage`)
+`database` (but its `extensions`), `restore` and the storage classes can change in place. The XRD lets volumes (`storage`, `walStorage`)
 grow but not shrink, keeps their `storageClass` fixed, and doesn't let `walStorage` be removed. CNPG grows
 PVCs online when the StorageClass has `allowVolumeExpansion`; size and CPU/memory changes restart the
 instances one by one, the primary last (switchover).
@@ -90,6 +91,37 @@ volumes for a new cluster.
   primary last). Removing a size stops new clusters from picking it; clusters that have it keep what
   `status.sizing` says. If the catalog can't be read, running clusters also keep `status.sizing`,
   never the defaults.
+
+## Extensions
+
+`spec.database.extensions` (the bootstrap database) and `spec.databases[].extensions` list the
+extensions CNPG creates in each database (`CREATE EXTENSION`), e.g. pgvector for vector search:
+
+```yaml
+spec:
+  database:
+    name: docs
+    owner: docs
+    extensions: [vector]   # CREATE EXTENSION vector in docs
+```
+
+- **Catalog:** the extensions a cluster may add are listed in the EnvironmentConfig
+  `postgres-extensions` ([`apis/postgrescluster/extensions.yaml`](apis/postgrescluster/extensions.yaml)):
+  pgvector plus a selection of contrib extensions that the default `postgresql-standard-trixie`
+  images ship. `install/install.sh` installs it once and never overwrites it. The portal offers
+  exactly this list.
+- **Admission:** a new extension must be in the catalog ([`apis/postgrescluster/policies.yaml`](apis/postgrescluster/policies.yaml)).
+  An extension a cluster already lists stays allowed after it's removed from the catalog. Without
+  the catalog every extension is let through, and CNPG reports one the image lacks on its `Database`.
+- **Settings:** an entry's `parameters` go into `postgresql.conf` while a database uses it, under the
+  size's settings and `spec.postgresql.parameters`. `pg_stat_statements` uses this to make CNPG
+  preload its library, which restarts the instances one by one, the primary last.
+- **Removing** an extension from a list leaves it installed: dropping it would also drop the
+  columns and indexes that use it (`DROP EXTENSION vector` drops every `vector` column). Drop it
+  with `psql` if you mean it.
+- **Images:** an extension must be in the image. For one the standard images lack (PostGIS,
+  TimescaleDB), add an image catalog with those images, point `spec.imageCatalog` at it, and add
+  the extension to the catalog.
 
 ## Differences from `cp-controlplane-poc` (v1 style)
 
@@ -428,7 +460,8 @@ apis/postgrescluster/definition.yaml       XRD (the API contract)
 apis/postgrescluster/composition.tmpl.yaml composition source -- edit this
 apis/postgrescluster/composition.yaml      GENERATED (make generate)
 apis/postgrescluster/sizes.yaml            the size catalog (EnvironmentConfig postgres-sizes), installed once
-apis/postgrescluster/policies.yaml         spec.size must be in the catalog
+apis/postgrescluster/extensions.yaml       the extension catalog (EnvironmentConfig postgres-extensions), installed once
+apis/postgrescluster/policies.yaml         spec.size and every extension must be in their catalogs
 src/dashboards/cnpg-cluster.json           CNPG Grafana dashboard (Apache-2.0)
 src/alerts/cnpg-cluster-rules.yaml         CNPG alerts from the cnpg/cluster chart (hack/refresh-alerts.sh)
 apis/location/definition.yaml              Location XRD (cluster-scoped): another Kubernetes cluster
@@ -455,7 +488,7 @@ On the control plane (Prometheus Operator and grafana-operator there for each Pr
 Prometheus and Grafana; CloudNativePG isn't needed there):
 
 ```sh
-install/install.sh                        # Crossplane 2.4.2 + everything above (+ the size catalog, once)
+install/install.sh                        # Crossplane 2.4.2 + everything above (+ the size and extension catalogs, once)
 SKIP_CROSSPLANE=true install/install.sh   # Crossplane already installed
 install/add-location.sh dc-a dc-a.kubeconfig      # every location: ../operator/install.sh there first
 kubectl apply -f examples/project-defaults.yaml   # edit the ingress hosts first
@@ -491,14 +524,15 @@ site, connect to that location instead.
 
 ```sh
 make generate   # after editing composition.tmpl.yaml or src/
-make test       # crossplane render for every API (PostgresCluster: 20 cases incl. sizes (from the
-                # catalog, retired, changed to or created with an unknown one), geo-replicated,
+make test       # crossplane render for every API (PostgresCluster: 22 cases incl. sizes (from the
+                # catalog, retired, changed to or created with an unknown one), extensions (the
+                # bootstrap database's, their settings from the catalog), geo-replicated,
                 # switchover/failover/promoted, draining, pinned sites, no Project, the Project's
                 # backup bucket and one still provisioning, restores from the bucket, from a store
                 # of its own and from a bucket not ready yet; Project: 6 cases incl. both sites, a
                 # COSI bucket and an unregistered location; Location: connected, ready,
                 # unreachable; each empty and observed where it matters; required/ mocks the
-                # Projects, Locations and EnvironmentConfig, plus the shipped size catalog),
+                # Projects, Locations and EnvironmentConfig, plus the shipped size and extension catalogs),
                 # crossplane resource validate against
                 # the CNPG/Barman/Prometheus/Grafana/provider-kubernetes/ClusterUsage CRDs
                 # (manifests inside Objects too), assertions

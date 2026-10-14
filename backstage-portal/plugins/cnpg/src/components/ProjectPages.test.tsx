@@ -63,6 +63,7 @@ describe('CreateClusterPage', () => {
   const base: Partial<CnpgApi> = {
     getConfig: jest.fn(async () => ({ storageClasses: [] })),
     listSizes: jest.fn(async () => []),
+    listExtensions: jest.fn(async () => []),
   };
 
   it('offers projects instead of free-text namespaces', async () => {
@@ -115,6 +116,22 @@ describe('CreateClusterPage', () => {
     await renderInTestApp(<CreateClusterPage />, apis(api) as any);
     expect(await screen.findByLabelText('CPU request')).toBeInTheDocument();
     expect(screen.queryByText('Size')).not.toBeInTheDocument();
+  });
+
+  it('adds pgvector from the extension catalog to the bootstrap database', async () => {
+    const api: Partial<CnpgApi> = {
+      ...base,
+      listProjects: jest.fn(async () => [project({})]),
+      listExtensions: jest.fn(async () => [
+        { name: 'vector', displayName: 'pgvector', description: 'Vector similarity search', parameters: {} },
+        { name: 'pg_trgm', displayName: 'pg_trgm', parameters: {} },
+      ]),
+    };
+    await renderInTestApp(<CreateClusterPage />, apis(api) as any);
+    const manifest = () => document.querySelector('pre')?.textContent ?? '';
+    fireEvent.click(await screen.findByRole('checkbox', { name: /pgvector/ }));
+    await waitFor(() => expect(manifest()).toMatch(/^ {4}extensions:\n {6}- vector$/m));
+    expect(screen.getByText(/HNSW index/)).toBeInTheDocument();
   });
 });
 

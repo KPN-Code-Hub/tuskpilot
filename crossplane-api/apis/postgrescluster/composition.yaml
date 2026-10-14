@@ -58,6 +58,13 @@
 # can't be read or has dropped the size, the cluster keeps running with that,
 # never with the defaults. Changing a size in the catalog resizes every cluster
 # of that size (CNPG restarts the instances one by one, the primary last).
+#
+# Extensions (spec.database.extensions, spec.databases[].extensions): the
+# EnvironmentConfig "postgres-extensions" (data.extensions, a list of {name,
+# parameters, ...}) is what the admission policy lets clusters add. The
+# parameters of the extensions in use go under the size's and spec's settings
+# (e.g. one that makes CNPG preload the library). The bootstrap database gets a
+# CNPG Database of its own (databaseReclaimPolicy retain) for its extensions.
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
@@ -81,7 +88,8 @@ spec:
           template: |
             {{- /* ================= member: everything one location runs =================
                  . = dict xr, member (location, topology, prefix, original, instances,
-                 sizing, observed, replica), members, distributed. $observed is the member's
+                 sizing, observed, replica), members, distributed, extensionParameters.
+                 $observed is the member's
                  normalised observed resources, keyed without the member prefix. */}}
             {{- define "member" }}
             {{- $xr := .xr }}
@@ -97,8 +105,9 @@ spec:
             {{- /* Resolved by the top level from spec.size (or spec.resources). */}}
             {{- $res := $m.sizing.resources }}
             {{- $pg := $spec.postgresql | default (dict) }}
-            {{- /* The size's tuned settings, under the ones spec.postgresql sets. */}}
-            {{- $params := merge (deepCopy ($pg.parameters | default (dict))) $m.sizing.parameters }}
+            {{- /* The size's tuned settings, under the ones spec.postgresql sets; what the
+                 extensions in use need (postgres-extensions catalog) under both. */}}
+            {{- $params := merge (deepCopy ($pg.parameters | default (dict))) $m.sizing.parameters (.extensionParameters | default (dict)) }}
             {{- $db := $spec.database | default (dict) }}
             {{- $ha := $spec.highAvailability | default (dict) }}
             {{- $syncReplicas := int (dig "synchronousReplicas" 0 $ha) }}
@@ -503,6 +512,41 @@ spec:
                   ensure: present
                 {{- end }}
               {{- end }}
+            {{- end }}
+
+            {{- /* The bootstrap database's extensions (spec.database.extensions), unless a
+                 databases[] entry manages that database. Never dropped: retain. */}}
+            {{- $dbName := dig "name" "app" $db }}
+            {{- $listed := list }}
+            {{- range $spec.databases }}{{ $listed = append $listed .name }}{{ end }}
+            {{- if and $db.extensions (not (has $dbName $listed)) }}
+            {{- $key := printf "database-%s" ($dbName | replace "_" "-") }}
+            {{- $dbObs := index $observed $key }}
+            ---
+            apiVersion: postgresql.cnpg.io/v1
+            kind: Database
+            metadata:
+              name: {{ $name }}-{{ $dbName | replace "_" "-" }}
+              namespace: {{ $namespace }}
+              annotations:
+                {{ setResourceNameAnnotation $key }}
+                gotemplating.fn.crossplane.io/ready: {{ if and $dbObs (dig "resource" "status" "applied" false $dbObs) }}"True"{{ else }}"False"{{ end }}
+              labels:
+                {{- range $k, $v := $labels }}
+                {{ $k }}: {{ $v | quote }}
+                {{- end }}
+            spec:
+              cluster:
+                name: {{ $name }}
+              name: {{ $dbName | quote }}
+              owner: {{ dig "owner" "app" $db | quote }}
+              ensure: present
+              databaseReclaimPolicy: retain
+              extensions:
+                {{- range $db.extensions }}
+                - name: {{ . | quote }}
+                  ensure: present
+                {{- end }}
             {{- end }}
 
             {{- /* ================= PgBouncer poolers ================= */}}
@@ -1078,6 +1122,10 @@ spec:
                 apiVersion: apiextensions.crossplane.io/v1beta1
                 kind: EnvironmentConfig
                 matchName: postgres-sizes
+              extensions:
+                apiVersion: apiextensions.crossplane.io/v1beta1
+                kind: EnvironmentConfig
+                matchName: postgres-extensions
             {{- $extra := .extraResources | default (dict) }}
             {{- $project := dict }}
             {{- with dig "project" "items" (list) $extra }}{{ $project = (first .).resource | default (dict) }}{{ end }}
@@ -1155,6 +1203,17 @@ spec:
             {{- with dig "limits" "cpu" "" $r }}{{ $_ := set $limits "cpu" . }}{{ end }}
             {{- $sizing = dict "size" ($sizing.size | default "") "parameters" ($sizing.parameters | default (dict))
                   "resources" (dict "requests" (dict "cpu" (dig "requests" "cpu" "500m" $r) "memory" (dig "requests" "memory" "1Gi" $r)) "limits" $limits) }}
+            {{- end }}
+
+            {{- /* ---- extensions: the postgresql.conf settings the extensions in use need,
+                 from the postgres-extensions catalog ---- */}}
+            {{- $usedExtensions := dig "database" "extensions" (list) $spec }}
+            {{- range ($spec.databases | default (list)) }}{{ $usedExtensions = concat $usedExtensions (.extensions | default (list)) }}{{ end }}
+            {{- $extensionParameters := dict }}
+            {{- with dig "extensions" "items" (list) $extra }}
+            {{- range dig "resource" "data" "extensions" (list) (first .) }}
+            {{- if has (.name | default "") $usedExtensions }}{{ $extensionParameters = merge $extensionParameters (.parameters | default (dict)) }}{{ end }}
+            {{- end }}
             {{- end }}
 
             {{- /* ---- archive folders: the cluster's name, or a new one for a restored
@@ -1249,7 +1308,7 @@ spec:
 
             {{- /* ================= emit every member's objects ================= */}}
             {{- range $m := $members }}
-            {{- $docs := include "member" (dict "xr" $xr "member" $m "members" $members "distributed" $distributed) }}
+            {{- $docs := include "member" (dict "xr" $xr "member" $m "members" $members "distributed" $distributed "extensionParameters" $extensionParameters) }}
             {{- range $doc := splitList "\n---\n" (printf "\n%s" $docs) }}
             {{- $obj := fromYaml $doc }}
             {{- if and $obj (hasKey $obj "kind") }}

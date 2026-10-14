@@ -23,6 +23,7 @@ export const CreateClusterPage = () => {
   const { value: config } = useAsync(() => api.getConfig(), [api]);
   // No catalog (or no access to it): custom resources only.
   const { value: sizes } = useAsync(() => api.listSizes().catch(() => []), [api]);
+  const { value: extensions } = useAsync(() => api.listExtensions().catch(() => []), [api]);
   // Clusters go into a Project namespace, which comes with its own
   // Prometheus and Grafana; free-text namespaces are no longer offered.
   const { value: projects, loading: projectsLoading } = useAsync(() => api.listProjects(), [api]);
@@ -117,6 +118,7 @@ export const CreateClusterPage = () => {
                 err={err}
                 storageClasses={config?.storageClasses ?? []}
                 sizes={sizes}
+                extensions={extensions}
                 projects={projects}
                 onSelectProject={selectProject}
               />

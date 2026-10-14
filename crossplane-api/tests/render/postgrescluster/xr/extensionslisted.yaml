@@ -1,0 +1,14 @@
+# The bootstrap database also listed in databases[]: that entry manages it,
+# so there is one CNPG Database for it, with the entry's extensions.
+apiVersion: cnpg.cncp.nl/v1alpha1
+kind: PostgresCluster
+metadata:
+  name: docs-db
+  namespace: demo
+spec:
+  database:
+    extensions: [vector]
+  databases:
+    - name: app
+      owner: app
+      extensions: [pg_trgm]
