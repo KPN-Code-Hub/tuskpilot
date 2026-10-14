@@ -22,6 +22,7 @@ export const LOCATION_PROVIDERS = [
   'aks',
   'eks',
   'gke',
+  'ske',
   'openshift',
   'kind',
   'other',

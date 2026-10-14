@@ -79,7 +79,7 @@ spec:
                 provider:
                   type: string
                   description: Where the cluster runs.
-                  enum: [on-premises, aks, eks, gke, openshift, kind, other]
+                  enum: [on-premises, aks, eks, gke, ske, openshift, kind, other]
                 region:
                   type: string
                   description: Region or data center, e.g. westeurope or dc-amsterdam-2.

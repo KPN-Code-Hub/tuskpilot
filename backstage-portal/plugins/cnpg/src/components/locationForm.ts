@@ -18,6 +18,7 @@ export const PROVIDER_LABELS: Record<LocationProvider, string> = {
   aks: 'Azure AKS',
   eks: 'Amazon EKS',
   gke: 'Google GKE',
+  ske: 'STACKIT SKE',
   openshift: 'OpenShift',
   kind: 'kind (local)',
   other: 'Other',
