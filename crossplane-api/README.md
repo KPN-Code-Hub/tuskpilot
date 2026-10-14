@@ -46,7 +46,7 @@ the control plane.
 | `postgresql.cnpg.io/v1 Database` `<name>-<database>` | `database.extensions` | The bootstrap database's extensions, unless a `databases[]` entry manages that database. `databaseReclaimPolicy: retain`: removing it never drops the database. See [Extensions](#extensions). |
 | `postgresql.cnpg.io/v1 Pooler` (rw, optionally ro) | `pooler.enabled` | PgBouncer with anti-affinity |
 | `monitoring.coreos.com/v1 PodMonitor` (instances, poolers) | `monitoring.enabled` (default) | Exposes the Prometheus metrics: the CNPG exporter on `:9187`, PgBouncer on `:9127`. Replaces the deprecated `Cluster.spec.monitoring.enablePodMonitor`. |
-| `monitoring.coreos.com/v1 PrometheusRule` | `monitoring.prometheusRule.enabled` (default) | The 19 upstream CNPG alerts, scoped to this cluster; `excludeRules` drops some |
+| `monitoring.coreos.com/v1 PrometheusRule` | `monitoring.prometheusRule.enabled` (default) | The 19 upstream CNPG alerts, scoped to this cluster; `excludeRules` drops some. The replication lag alerts skip a replica cluster (geo replication recovery site), whose lag follows WAL archiving |
 | `v1 Secret` copies | `backup.s3Credentials`, `backup.endpointCA`, `restore.source.s3Credentials`/`endpointCA`, `roles[].passwordSecret` | The Secrets the cluster references, copied from the project namespace on the control plane by provider-kubernetes `references`: the values never appear in an `Object` spec |
 | `grafana.integreatly.org/v1beta1 GrafanaDashboard` (control plane) | `monitoring.grafanaDashboard.enabled` (default) | **The same CloudNativePG dashboard** as `cn-paas-operator-poc`, with a per-cluster uid/title and the namespace/cluster variables preselected |
 
@@ -464,6 +464,7 @@ apis/postgrescluster/extensions.yaml       the extension catalog (EnvironmentCon
 apis/postgrescluster/policies.yaml         spec.size and every extension must be in their catalogs
 src/dashboards/cnpg-cluster.json           CNPG Grafana dashboard (Apache-2.0)
 src/alerts/cnpg-cluster-rules.yaml         CNPG alerts from the cnpg/cluster chart (hack/refresh-alerts.sh)
+src/alerts/local-rules.yaml                our changes to those alerts (replace upstream rules by name)
 apis/location/definition.yaml              Location XRD (cluster-scoped): another Kubernetes cluster
 apis/location/composition.yaml             its ClusterProviderConfig, Prometheus ClusterRole, operator checks
 apis/project/definition.yaml               Project XRD (cluster-scoped)

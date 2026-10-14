@@ -1,6 +1,7 @@
 # Source for composition.yaml. hack/generate replaces the #@DASHBOARD_JSON@
 # and #@ALERT_RULES@ marker lines with ../../src/dashboards/cnpg-cluster.json
-# and ../../src/alerts/cnpg-cluster-rules.yaml (escaped for Go templating).
+# and ../../src/alerts/cnpg-cluster-rules.yaml with local-rules.yaml applied
+# (escaped for Go templating).
 # Edit this file, then run `make generate`; never edit composition.yaml.
 #
 # Crossplane v2: the namespaced PostgresCluster XR lives in its Project's

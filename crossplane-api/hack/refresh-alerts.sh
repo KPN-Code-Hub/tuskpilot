@@ -2,7 +2,8 @@
 # Re-renders ../src/alerts/cnpg-cluster-rules.yaml from the upstream
 # cnpg/cluster Helm chart's PrometheusRule, with placeholder names that
 # hack/generate later swaps for template expressions. Run, review the diff,
-# then `make generate`.
+# re-check src/alerts/local-rules.yaml (our replacements for some of these
+# rules), then `make generate`.
 #
 #   CLUSTER_CHART_VERSION=0.9.0 hack/refresh-alerts.sh
 set -euo pipefail

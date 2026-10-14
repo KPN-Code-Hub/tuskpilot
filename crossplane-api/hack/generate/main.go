@@ -6,6 +6,10 @@
 //	src/dashboards/cnpg-cluster.json    -> the #@DASHBOARD_JSON@ marker
 //	src/alerts/cnpg-cluster-rules.yaml  -> the #@ALERT_RULES@ marker
 //
+// src/alerts/local-rules.yaml holds our changes to the upstream alerts (a rule
+// there replaces the upstream rule of the same name), so that
+// hack/refresh-alerts.sh can overwrite cnpg-cluster-rules.yaml freely.
+//
 // Both contain literal {{ ... }} (Grafana legend formats, Prometheus alert
 // templating) that must survive function-go-templating's own Go-template
 // pass, so every {{ / }} is escaped as {{"{{"}} / {{"}}"}}. Placeholders are
@@ -108,7 +112,8 @@ func render(base, template string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	rules, err := alertRules(filepath.Join(base, "src", "alerts", "cnpg-cluster-rules.yaml"))
+	alerts := filepath.Join(base, "src", "alerts")
+	rules, err := alertRules(filepath.Join(alerts, "cnpg-cluster-rules.yaml"), filepath.Join(alerts, "local-rules.yaml"))
 	if err != nil {
 		return "", err
 	}
@@ -200,12 +205,47 @@ func dashboard(path string) (string, error) {
 }
 
 // alertRules emits one YAML list item per rule, each wrapped in an
-// excludeRules guard. The rules file is a top-level block sequence written by
-// hack/refresh-alerts.sh, so each item is embedded exactly as formatted there.
-func alertRules(path string) (string, error) {
-	raw, err := os.ReadFile(path)
+// excludeRules guard. A rule in local replaces the upstream rule of the same
+// name in place; one with a new name is appended. Both files are top-level
+// block sequences, so each item is embedded exactly as formatted there.
+func alertRules(upstream, local string) (string, error) {
+	rules, err := readRules(upstream)
 	if err != nil {
 		return "", err
+	}
+	overrides, err := readRules(local)
+	if err != nil {
+		return "", err
+	}
+	for _, o := range overrides {
+		replaced := false
+		for i := range rules {
+			if rules[i].alert == o.alert {
+				rules[i], replaced = o, true
+				break
+			}
+		}
+		if !replaced {
+			rules = append(rules, o)
+		}
+	}
+	var out []string
+	for _, r := range rules {
+		out = append(out,
+			fmt.Sprintf(`{{- if not (has "%s" $excludeRules) }}`, r.alert),
+			subst.Replace(escape(r.body)),
+			"{{- end }}")
+	}
+	return strings.Join(out, "\n"), nil
+}
+
+type alertRule struct{ alert, body string }
+
+// readRules splits a rules file into its list items, keeping each item's text.
+func readRules(path string) ([]alertRule, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
 	}
 	var items [][]string
 	for _, line := range splitLines(string(raw)) {
@@ -214,27 +254,24 @@ func alertRules(path string) (string, error) {
 			items = append(items, []string{line})
 		case len(items) == 0:
 			if line != "" && !strings.HasPrefix(line, "#") {
-				return "", fmt.Errorf("%s: expected a YAML sequence of rules, got %q", path, line)
+				return nil, fmt.Errorf("%s: expected a YAML sequence of rules, got %q", path, line)
 			}
 		default:
 			items[len(items)-1] = append(items[len(items)-1], line)
 		}
 	}
-	var out []string
+	var rules []alertRule
 	for _, item := range items {
 		body := strings.TrimRight(strings.Join(item, "\n"), "\n")
 		var rule []struct {
 			Alert string `yaml:"alert"`
 		}
 		if err := yaml.Unmarshal([]byte(body), &rule); err != nil || len(rule) != 1 || rule[0].Alert == "" {
-			return "", fmt.Errorf("%s: cannot read rule %q: %v", path, item[0], err)
+			return nil, fmt.Errorf("%s: cannot read rule %q: %v", path, item[0], err)
 		}
-		out = append(out,
-			fmt.Sprintf(`{{- if not (has "%s" $excludeRules) }}`, rule[0].Alert),
-			subst.Replace(escape(body)),
-			"{{- end }}")
+		rules = append(rules, alertRule{rule[0].Alert, body})
 	}
-	return strings.Join(out, "\n"), nil
+	return rules, nil
 }
 
 // --- order-preserving JSON, written the way Python's

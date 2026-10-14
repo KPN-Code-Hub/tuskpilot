@@ -1,0 +1,69 @@
+# Our changes to the upstream CloudNativePG alerts in cnpg-cluster-rules.yaml,
+# which hack/refresh-alerts.sh overwrites. hack/generate replaces each upstream
+# rule with the rule of the same name here (a new name is added), with the
+# same placeholder substitution and escaping. Re-check these after a refresh.
+#
+# Lag alerts ignore the instances of a replica cluster (the geoReplication
+# recovery site; cnpg_collector_replica_mode == 1), as upstream's HA alerts do.
+# Such a cluster replays WAL from the object store, not over streaming, and
+# cnpg_pg_replication_lag counts the time since the last replayed transaction:
+# it climbs to archive_timeout (5m) and beyond, and without limit while the
+# primary is idle, even when the replica is fully caught up.
+- alert: CNPGClusterHighReplicationLag
+  annotations:
+    summary: CNPG Cluster high replication lag
+    description: |-
+      CloudNativePG Cluster "zznamespacezz/zzclusterzz" is experiencing a high replication lag of
+      {{ $value }}s.
+
+      High replication lag indicates network issues, busy instances, slow queries or suboptimal configuration.
+      Replica cluster instances (geo replication) are not included, their lag follows WAL archiving.
+    runbook_url: https://github.com/cloudnative-pg/charts/blob/main/charts/cluster/docs/runbooks/CNPGClusterHighReplicationLag.md
+  expr: |
+    max(
+      cnpg_pg_replication_lag{namespace="zznamespacezz",pod=~"zzclusterzz-([1-9][0-9]*)$"}
+        unless on (namespace, pod) (cnpg_collector_replica_mode{namespace="zznamespacezz",pod=~"zzclusterzz-([1-9][0-9]*)$"} == 1)
+    ) > 1
+  for: 5m
+  labels:
+    severity: warning
+    namespace: zznamespacezz
+    cnpg_cluster: zzclusterzz
+- alert: CNPGClusterPhysicalReplicationLagCritical
+  annotations:
+    summary: CNPG Cluster very high physical replication lag
+    description: |-
+      CloudNativePG Cluster "zznamespacezz/zzclusterzz" is experiencing a very high physical replication lag of {{ $value }}s.
+
+      High replication lag indicates network issues, busy instances, slow queries or suboptimal configuration.
+      Replica cluster instances (geo replication) are not included, their lag follows WAL archiving.
+    runbook_url: https://github.com/cloudnative-pg/charts/blob/main/charts/cluster/docs/runbooks/CNPGClusterPhysicalReplicationLag.md
+  expr: |
+    max(
+      cnpg_pg_replication_lag{namespace="zznamespacezz",pod=~"zzclusterzz-([1-9][0-9]*)$"}
+        unless on (namespace, pod) (cnpg_collector_replica_mode{namespace="zznamespacezz",pod=~"zzclusterzz-([1-9][0-9]*)$"} == 1)
+    ) > 15
+  for: 5m
+  labels:
+    severity: critical
+    namespace: zznamespacezz
+    cnpg_cluster: zzclusterzz
+- alert: CNPGClusterPhysicalReplicationLagWarning
+  annotations:
+    summary: CNPG Cluster high physical replication lag
+    description: |-
+      CloudNativePG Cluster "zznamespacezz/zzclusterzz" is experiencing a high physical replication lag of {{ $value }}s.
+
+      High replication lag indicates network issues, busy instances, slow queries or suboptimal configuration.
+      Replica cluster instances (geo replication) are not included, their lag follows WAL archiving.
+    runbook_url: https://github.com/cloudnative-pg/charts/blob/main/charts/cluster/docs/runbooks/CNPGClusterPhysicalReplicationLag.md
+  expr: |
+    max(
+      cnpg_pg_replication_lag{namespace="zznamespacezz",pod=~"zzclusterzz-([1-9][0-9]*)$"}
+        unless on (namespace, pod) (cnpg_collector_replica_mode{namespace="zznamespacezz",pod=~"zzclusterzz-([1-9][0-9]*)$"} == 1)
+    ) > 1
+  for: 5m
+  labels:
+    severity: warning
+    namespace: zznamespacezz
+    cnpg_cluster: zzclusterzz

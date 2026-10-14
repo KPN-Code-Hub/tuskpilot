@@ -68,7 +68,8 @@ func run(src, out, version string) error {
 	}
 	header := fmt.Sprintf(`# CloudNativePG alert rules, rendered from the upstream cnpg/cluster Helm
 # chart %s (Apache-2.0, https://github.com/cloudnative-pg/charts) by
-# hack/refresh-alerts.sh -- do not edit by hand. hack/generate substitutes:
+# hack/refresh-alerts.sh -- do not edit by hand; change a rule by adding its
+# replacement to local-rules.yaml. hack/generate substitutes:
 #   zzclusterzz   -> the PostgresCluster name
 #   zznamespacezz -> the PostgresCluster namespace
 # and escapes Prometheus' own {{ $value }} / {{ $labels.x }} templating

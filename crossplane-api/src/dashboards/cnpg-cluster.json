@@ -984,8 +984,38 @@
           "unit": "s",
           "unitScale": true
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "DR"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 600
+                    },
+                    {
+                      "color": "red",
+                      "value": 3600
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
       },
+      "description": "Streaming: the highest lag of this cluster's own standbys. DR: a replica cluster (geo replication recovery site), which replays WAL from the object store; its lag normally climbs to archive_timeout (5m) and keeps climbing while the primary is idle, even when fully caught up.",
       "gridPos": {
         "h": 3,
         "w": 2,
@@ -1018,11 +1048,24 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "max(cnpg_pg_replication_lag{namespace=~\"$namespace\",pod=~\"$instances\"})",
+          "expr": "max(cnpg_pg_replication_lag{namespace=~\"$namespace\",pod=~\"$instances\"} unless on (namespace, pod, location, site) (cnpg_collector_replica_mode{namespace=~\"$namespace\",pod=~\"$instances\"} == 1))",
           "instant": true,
-          "legendFormat": "__auto",
+          "legendFormat": "Streaming",
           "range": false,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "max(cnpg_pg_replication_lag{namespace=~\"$namespace\",pod=~\"$instances\"} and on (namespace, pod, location, site) (cnpg_collector_replica_mode{namespace=~\"$namespace\",pod=~\"$instances\"} == 1))",
+          "instant": true,
+          "legendFormat": "DR",
+          "range": false,
+          "refId": "B"
         }
       ],
       "title": "Replication Lag",
