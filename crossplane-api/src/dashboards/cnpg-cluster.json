@@ -2250,7 +2250,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "The operator reconcile errors don't distinguish between database cluster or namespaces.",
+      "description": "Operator reconcile errors in the last hour; older errors are not counted. The operator reconcile errors don't distinguish between database cluster or namespaces.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2373,7 +2373,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "clamp_max(max(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"backup\"}), 1)",
+          "expr": "clamp_max(ceil(sum(increase(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"backup\"}[1h]))), 1)",
           "hide": true,
           "legendFormat": "__auto",
           "range": true,
@@ -2385,7 +2385,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "clamp_max(max(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"cluster\"}), 1)",
+          "expr": "clamp_max(ceil(sum(increase(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"cluster\"}[1h]))), 1)",
           "hide": true,
           "legendFormat": "__auto",
           "range": true,
@@ -2397,7 +2397,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "clamp_max(max(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"pooler\"}), 1)",
+          "expr": "clamp_max(ceil(sum(increase(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"pooler\"}[1h]))), 1)",
           "hide": true,
           "legendFormat": "__auto",
           "range": true,
@@ -2409,7 +2409,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "clamp_max(max(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=~\"scheduledbackup|scheduled-backup\"}), 1)",
+          "expr": "clamp_max(ceil(sum(increase(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=~\"scheduledbackup|scheduled-backup\"}[1h]))), 1)",
           "hide": true,
           "legendFormat": "__auto",
           "range": true,
@@ -8168,7 +8168,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The operator reconcile errors don't distinguish between database cluster or namespaces.",
+          "description": "Operator reconcile errors in the last hour; older errors are not counted. The operator reconcile errors don't distinguish between database cluster or namespaces.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8254,12 +8254,12 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "max(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"cluster\"})",
+              "expr": "ceil(sum(increase(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"cluster\"}[1h])))",
               "hide": false,
               "instant": true,
-              "legendFormat": "Cluster Reconcile Errors",
+              "legendFormat": "Cluster Reconcile Errors (1h)",
               "range": false,
-              "refId": "RECONCILE_ERRORS_BACKUP"
+              "refId": "RECONCILE_ERRORS_CLUSTER"
             }
           ],
           "type": "stat"
@@ -8269,7 +8269,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The operator reconcile errors don't distinguish between database cluster or namespaces.",
+          "description": "Operator reconcile errors in the last hour; older errors are not counted. The operator reconcile errors don't distinguish between database cluster or namespaces.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8355,10 +8355,10 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "max(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"backup\"})",
+              "expr": "ceil(sum(increase(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"backup\"}[1h])))",
               "hide": false,
               "instant": true,
-              "legendFormat": "Backup Reconcile Errors",
+              "legendFormat": "Backup Reconcile Errors (1h)",
               "range": false,
               "refId": "RECONCILE_ERRORS_BACKUP"
             }
@@ -8370,7 +8370,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The operator reconcile errors don't distinguish between database cluster or namespaces.",
+          "description": "Operator reconcile errors in the last hour; older errors are not counted. The operator reconcile errors don't distinguish between database cluster or namespaces.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8456,12 +8456,12 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "max(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=~\"scheduledbackup|scheduled-backup\"})",
+              "expr": "ceil(sum(increase(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=~\"scheduledbackup|scheduled-backup\"}[1h])))",
               "hide": false,
               "instant": true,
-              "legendFormat": "Scheduled Backup Reconcile Errors",
+              "legendFormat": "Scheduled Backup Reconcile Errors (1h)",
               "range": false,
-              "refId": "RECONCILE_ERRORS_BACKUP"
+              "refId": "RECONCILE_ERRORS_SCHEDULED_BACKUP"
             }
           ],
           "type": "stat"
@@ -8471,7 +8471,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The operator reconcile errors don't distinguish between database cluster or namespaces.",
+          "description": "Operator reconcile errors in the last hour; older errors are not counted. The operator reconcile errors don't distinguish between database cluster or namespaces.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8557,12 +8557,12 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "max(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"pooler\"})",
+              "expr": "ceil(sum(increase(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"pooler\"}[1h])))",
               "hide": false,
               "instant": true,
-              "legendFormat": "Pooler Reconcile Errors",
+              "legendFormat": "Pooler Reconcile Errors (1h)",
               "range": false,
-              "refId": "RECONCILE_ERRORS_BACKUP"
+              "refId": "RECONCILE_ERRORS_POOLER"
             }
           ],
           "type": "stat"
@@ -8690,7 +8690,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The operator reconcile errors don't distinguish between database cluster or namespaces.",
+          "description": "Operator reconcile errors per interval. The operator reconcile errors don't distinguish between database cluster or namespaces.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8803,11 +8803,11 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "max(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"cluster\"})",
+              "expr": "ceil(sum(increase(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"cluster\"}[$__rate_interval])))",
               "hide": false,
               "legendFormat": "Cluster Reconcile Errors",
               "range": true,
-              "refId": "RECONCILE_ERRORS_BACKUP"
+              "refId": "RECONCILE_ERRORS_CLUSTER"
             }
           ],
           "title": "Cluster Reconcile Errors",
@@ -8818,7 +8818,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The operator reconcile errors don't distinguish between database cluster or namespaces.",
+          "description": "Operator reconcile errors per interval. The operator reconcile errors don't distinguish between database cluster or namespaces.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8931,7 +8931,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "max(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"backup\"})",
+              "expr": "ceil(sum(increase(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"backup\"}[$__rate_interval])))",
               "hide": false,
               "legendFormat": "Backup Reconcile Errors",
               "range": true,
@@ -8946,7 +8946,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The operator reconcile errors don't distinguish between database cluster or namespaces.",
+          "description": "Operator reconcile errors per interval. The operator reconcile errors don't distinguish between database cluster or namespaces.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -9060,12 +9060,12 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "max(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=~\"scheduledbackup|scheduled-backup\"})",
+              "expr": "ceil(sum(increase(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=~\"scheduledbackup|scheduled-backup\"}[$__rate_interval])))",
               "hide": false,
               "instant": false,
               "legendFormat": "Scheduled Backup Reconcile Errors",
               "range": true,
-              "refId": "RECONCILE_ERRORS_BACKUP"
+              "refId": "RECONCILE_ERRORS_SCHEDULED_BACKUP"
             }
           ],
           "title": "Scheduled Backup Reconcile Errors",
@@ -9076,7 +9076,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The operator reconcile errors don't distinguish between database cluster or namespaces.",
+          "description": "Operator reconcile errors per interval. The operator reconcile errors don't distinguish between database cluster or namespaces.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -9189,11 +9189,11 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "max(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"pooler\"})",
+              "expr": "ceil(sum(increase(controller_runtime_reconcile_total{namespace=~\"$operatorNamespace\", result=\"error\", controller=\"pooler\"}[$__rate_interval])))",
               "hide": false,
               "legendFormat": "Pooler Reconcile Errors",
               "range": true,
-              "refId": "RECONCILE_ERRORS_BACKUP"
+              "refId": "RECONCILE_ERRORS_POOLER"
             }
           ],
           "title": "Pooler Reconcile Errors",
