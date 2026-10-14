@@ -469,7 +469,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "max(cnpg_pg_replication_lag{namespace=~\"$namespace\",pod=~\"$instances\"}) + max(cnpg_pg_stat_replication_write_lag_seconds{namespace=~\"$namespace\",pod=~\"$instances\"}) + max(cnpg_pg_stat_replication_flush_lag_seconds{namespace=~\"$namespace\",pod=~\"$instances\"}) + max(cnpg_pg_stat_replication_replay_lag_seconds{namespace=~\"$namespace\",pod=~\"$instances\"})",
+          "expr": "max(cnpg_pg_replication_lag{namespace=~\"$namespace\",pod=~\"$instances\"} unless on (namespace, pod, location, site) (cnpg_collector_replica_mode{namespace=~\"$namespace\",pod=~\"$instances\"} == 1)) + max(cnpg_pg_stat_replication_write_lag_seconds{namespace=~\"$namespace\",pod=~\"$instances\"}) + max(cnpg_pg_stat_replication_flush_lag_seconds{namespace=~\"$namespace\",pod=~\"$instances\"}) + max(cnpg_pg_stat_replication_replay_lag_seconds{namespace=~\"$namespace\",pod=~\"$instances\"})",
           "hide": false,
           "instant": false,
           "legendFormat": "Lag",
@@ -984,38 +984,9 @@
           "unit": "s",
           "unitScale": true
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "DR"
-            },
-            "properties": [
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "yellow",
-                      "value": 600
-                    },
-                    {
-                      "color": "red",
-                      "value": 3600
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
-      "description": "Streaming: the highest lag of this cluster's own standbys. DR: a replica cluster (geo replication recovery site), which replays WAL from the object store; its lag normally climbs to archive_timeout (5m) and keeps climbing while the primary is idle, even when fully caught up.",
+      "description": "The highest lag of this cluster's own streaming standbys. Instances of a replica cluster (geo replication recovery site) are not included: they replay WAL from the object store, and their lag counts the time since the last replayed transaction, which keeps climbing while the primary is idle.",
       "gridPos": {
         "h": 3,
         "w": 2,
@@ -1053,19 +1024,6 @@
           "legendFormat": "Streaming",
           "range": false,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "max(cnpg_pg_replication_lag{namespace=~\"$namespace\",pod=~\"$instances\"} and on (namespace, pod, location, site) (cnpg_collector_replica_mode{namespace=~\"$namespace\",pod=~\"$instances\"} == 1))",
-          "instant": true,
-          "legendFormat": "DR",
-          "range": false,
-          "refId": "B"
         }
       ],
       "title": "Replication Lag",
@@ -1244,7 +1202,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "max(\n    sum by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{namespace=\"$namespace\", persistentvolumeclaim=~\"(${instances})-tbs.*\"}) \n    /\n    sum by (namespace,persistentvolumeclaim) (kubelet_volume_stats_capacity_bytes{namespace=\"$namespace\", persistentvolumeclaim=~\"(${instances})-tbs.*\"}) \n    *\n    on(namespace, persistentvolumeclaim) group_left(volume)\n    kube_pod_spec_volumes_persistentvolumeclaims_info{pod=~\"$instances\"}\n)",
+          "expr": "max(\n    sum by (namespace,persistentvolumeclaim,location,site) (kubelet_volume_stats_used_bytes{namespace=\"$namespace\", persistentvolumeclaim=~\"(${instances})-tbs.*\"}) \n    /\n    sum by (namespace,persistentvolumeclaim,location,site) (kubelet_volume_stats_capacity_bytes{namespace=\"$namespace\", persistentvolumeclaim=~\"(${instances})-tbs.*\"}) \n    *\n    on(namespace, persistentvolumeclaim, location, site) group_left(volume)\n    kube_pod_spec_volumes_persistentvolumeclaims_info{pod=~\"$instances\"}\n)",
           "hide": false,
           "instant": true,
           "legendFormat": "Tablespaces (max)",
@@ -2176,7 +2134,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "max((1 - cnpg_pg_replication_in_recovery{namespace=~\"$namespace\", pod=~\"$instances\"}) * (time() - timestamp(cnpg_pg_stat_archiver_seconds_since_last_archival{namespace=~\"$namespace\", pod=~\"$instances\"}) +\ncnpg_pg_stat_archiver_seconds_since_last_archival{namespace=~\"$namespace\", pod=~\"$instances\"})\n* on(pod, namespace) group_left()\n(cnpg_collector_pg_wal_archive_status{namespace=~\"$namespace\", pod=~\"$instances\", value=\"ready\"} > bool 0))",
+          "expr": "max((1 - cnpg_pg_replication_in_recovery{namespace=~\"$namespace\", pod=~\"$instances\"}) * (time() - timestamp(cnpg_pg_stat_archiver_seconds_since_last_archival{namespace=~\"$namespace\", pod=~\"$instances\"}) +\ncnpg_pg_stat_archiver_seconds_since_last_archival{namespace=~\"$namespace\", pod=~\"$instances\"})\n* on(pod, namespace, location, site) group_left()\n(cnpg_collector_pg_wal_archive_status{namespace=~\"$namespace\", pod=~\"$instances\", value=\"ready\"} > bool 0))",
           "hide": false,
           "instant": false,
           "legendFormat": "WAL",
@@ -3554,7 +3512,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "kube_pod_info{namespace=~\"$namespace\", pod=~\"$instances\"} * on(node,instance) group_left(label_topology_kubernetes_io_zone) kube_node_labels",
+          "expr": "kube_pod_info{namespace=~\"$namespace\", pod=~\"$instances\"} * on(node, instance, location, site) group_left(label_topology_kubernetes_io_zone) kube_node_labels",
           "format": "table",
           "instant": true,
           "interval": "",
@@ -6022,7 +5980,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "sum by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{namespace=\"$namespace\", persistentvolumeclaim=~\"(${instances})-tbs.*\"}) \n/\nsum by (namespace,persistentvolumeclaim) (kubelet_volume_stats_capacity_bytes{namespace=\"$namespace\", persistentvolumeclaim=~\"(${instances})-tbs.*\"}) \n*\non(namespace, persistentvolumeclaim) group_left(volume,pod)\nkube_pod_spec_volumes_persistentvolumeclaims_info{pod=~\"$instances\"}",
+              "expr": "sum by (namespace,persistentvolumeclaim,location,site) (kubelet_volume_stats_used_bytes{namespace=\"$namespace\", persistentvolumeclaim=~\"(${instances})-tbs.*\"}) \n/\nsum by (namespace,persistentvolumeclaim,location,site) (kubelet_volume_stats_capacity_bytes{namespace=\"$namespace\", persistentvolumeclaim=~\"(${instances})-tbs.*\"}) \n*\non(namespace, persistentvolumeclaim, location, site) group_left(volume,pod)\nkube_pod_spec_volumes_persistentvolumeclaims_info{pod=~\"$instances\"}",
               "format": "time_series",
               "interval": "",
               "legendFormat": "{{volume}}-{{pod}}",
@@ -7417,7 +7375,7 @@
               "color": "rgba(255,0,255,0.7)"
             },
             "filterValues": {
-              "le": 1e-9
+              "le": 1e-09
             },
             "legend": {
               "show": false
