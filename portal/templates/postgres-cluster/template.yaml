@@ -66,8 +66,8 @@ spec:
 
     - title: Sizing
       properties:
-        # The names in the postgres-sizes catalog (crossplane-api
-        # apis/postgrescluster/sizes.yaml); keep them in step with it. The
+        # The names in the postgres-sizes catalog
+        # (api/apis/postgrescluster/sizes.yaml); keep them in step with it. The
         # API refuses a size the catalog doesn't have.
         size:
           title: Size

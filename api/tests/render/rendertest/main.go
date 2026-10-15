@@ -20,7 +20,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/bartvanbenthem/postgres-paas/crossplane-api/internal/doc"
+	"github.com/bartvanbenthem/postgres-paas/api/internal/doc"
 )
 
 type (
@@ -332,7 +332,7 @@ func allStrings(v any) string {
 	return b.String()
 }
 
-// root is the crossplane-api directory.
+// root is the api directory.
 func root() string {
 	_, file, _, _ := runtime.Caller(0)
 	return filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(file))))

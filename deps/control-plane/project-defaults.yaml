@@ -1,6 +1,6 @@
 # Platform-wide Project settings for this control plane: every Project's
 # composition reads them, so apply this once, before the first Project (see
-# ../../crossplane-api/examples/project-defaults.yaml for every key).
+# ../../api/examples/project-defaults.yaml for every key).
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:

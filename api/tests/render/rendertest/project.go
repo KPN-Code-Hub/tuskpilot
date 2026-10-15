@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bartvanbenthem/postgres-paas/crossplane-api/internal/doc"
+	"github.com/bartvanbenthem/postgres-paas/api/internal/doc"
 )
 
 var (

@@ -1,4 +1,4 @@
-module github.com/bartvanbenthem/postgres-paas/crossplane-api
+module github.com/bartvanbenthem/postgres-paas/api
 
 go 1.24
 

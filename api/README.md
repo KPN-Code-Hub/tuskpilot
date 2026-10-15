@@ -1,4 +1,4 @@
-# crossplane-api: the `PostgresCluster` and `Project` APIs
+# api/: the `PostgresCluster` and `Project` APIs
 
 Two Crossplane **v2** composite resources:
 

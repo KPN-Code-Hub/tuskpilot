@@ -16,7 +16,7 @@ There are two separate problems here, and they differ a lot in difficulty:
 ## 1. SSO for the platform
 
 Today the portal uses the `guest` provider (`auth.providers.guest` in
-[`app-config.production.yaml`](../backstage-portal/app-config.production.yaml)).
+[`app-config.production.yaml`](../portal/app-config.production.yaml)).
 
 | Component | What to do |
 |---|---|
@@ -30,7 +30,7 @@ The risk is low and nothing changes in the data path.
 
 The `PostgresCluster` API already exposes the two hooks every option below needs:
 `pgHba` (extra `pg_hba.conf` lines) and `roles[]` (CNPG managed roles), see the
-[definition](../crossplane-api/apis/postgrescluster/definition.yaml).
+[definition](../api/apis/postgrescluster/definition.yaml).
 
 ### Options
 

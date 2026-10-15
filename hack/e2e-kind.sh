@@ -2,7 +2,7 @@
 # End-to-end test on two throwaway kind clusters: a control plane (Crossplane,
 # the APIs, each Project's Grafana and the Prometheus that receives its
 # metrics; no CloudNativePG) and one location the databases run in. Installs
-# the prerequisites (deps), operator and crossplane-api as
+# the prerequisites (deps), operator and api as
 # documented, creates a Project (namespaces, Prometheus, Grafana) with that
 # location as its protected site and a PostgresCluster in it, and checks that
 # the database is healthy, its metrics reach the location's Prometheus and,
@@ -104,13 +104,13 @@ kube_prometheus_stack "${LOC_KUBECONFIG}"
 "${L[@]}" -n cert-manager wait deploy --all --for=condition=Available --timeout=300s
 KUBECONFIG="${LOC_KUBECONFIG}" "${ROOT}/operator/install.sh"
 
-echo "==> crossplane-api on the control plane"
-KUBECONFIG="${CP_KUBECONFIG}" "${ROOT}/crossplane-api/install/install.sh"
+echo "==> api on the control plane"
+KUBECONFIG="${CP_KUBECONFIG}" "${ROOT}/api/install/install.sh"
 
 echo "==> register the location"
 kind get kubeconfig --internal --name "${LOC}" \
   | sed "s#https://${LOC}-control-plane:6443#https://$(node_ip "${LOC}"):6443#" >"${WORK}/loc-internal.kubeconfig"
-KUBECONFIG="${CP_KUBECONFIG}" "${ROOT}/crossplane-api/install/add-location.sh" "${LOCATION}" "${WORK}/loc-internal.kubeconfig"
+KUBECONFIG="${CP_KUBECONFIG}" "${ROOT}/api/install/add-location.sh" "${LOCATION}" "${WORK}/loc-internal.kubeconfig"
 if ! "${C[@]}" wait location/${LOCATION} --for=condition=Ready --timeout=300s; then
   "${C[@]}" get location ${LOCATION} -o yaml; exit 1
 fi

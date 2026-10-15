@@ -24,7 +24,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/bartvanbenthem/postgres-paas/crossplane-api/internal/doc"
+	"github.com/bartvanbenthem/postgres-paas/api/internal/doc"
 )
 
 type M = doc.M

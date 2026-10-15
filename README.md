@@ -1,7 +1,7 @@
 # Tuskpilot Autonomous Postgres
 
 <p align="center">
-  <img src="backstage-portal/logos/tuskpilot-icon.svg" alt="Tuskpilot logo" width="160">
+  <img src="portal/logos/tuskpilot-icon.svg" alt="Tuskpilot logo" width="160">
 </p>
 
 A complete PostgreSQL Platform as a Service on Kubernetes, built on
@@ -13,10 +13,10 @@ them:
 - **Self-service:** one `PostgresCluster` API object, or a form in the Backstage portal, gives a
   team a highly available cluster with connection pooling (PgBouncer), in a size (SKU) from the
   platform's catalog (XS to XL) with PostgreSQL tuned to it, or with custom CPU and memory (see
-  [Sizes](crossplane-api/README.md#sizes)).
+  [Sizes](api/README.md#sizes)).
 - **Extensions:** pgvector for vector search (embeddings, RAG) and other extensions from the
   platform's catalog, picked per cluster in the API or the portal (see
-  [Extensions](crossplane-api/README.md#extensions)).
+  [Extensions](api/README.md#extensions)).
 - **Multi-tenant:** each team works in its own **Project**, with access control, an optional quota
   and deletion protection.
 - **Built-in observability:** metrics, alerts and the CNPG Grafana dashboard for every cluster, in
@@ -54,16 +54,16 @@ which is provisioned with COSI on the control plane and has its own keys for eac
   up to a point in time or the latest state, also of a cluster deleted since (the Project keeps an
   inventory of the folders in its bucket). The source is only read; the restored cluster archives to
   a folder of its own. The portal offers it on a cluster's Backups tab and on the project page.
-  See [Restore](crossplane-api/README.md#postgrescluster-restore).
+  See [Restore](api/README.md#postgrescluster-restore).
 
-See [Locations](crossplane-api/README.md#locations) for how to configure this.
+See [Locations](api/README.md#locations) for how to configure this.
 
 | Folder | What | Built with |
 |---|---|---|
 | [`deps/`](deps/) | cert-manager, Prometheus Operator, grafana-operator, ingress; the `demo` Project | Helm, kubectl |
 | [`operator/`](operator/) | CloudNativePG operator, Barman Cloud backup plugin and the PostgreSQL image catalog, installed from charts **vendored in this repo** | Helm |
-| [`crossplane-api/`](crossplane-api/) | `PostgresCluster` (`cnpg.cncp.nl/v1alpha1`): one namespaced API object that bundles everything a production CNPG cluster needs, including metrics, alerts and the CNPG Grafana dashboard. `Project` (`platform.cncp.nl/v1alpha1`): a namespace with its own Prometheus and Grafana, RoleBindings, an optional quota and deletion protection. Both place what runs in the locations through provider-kubernetes | Crossplane v2 |
-| [`backstage-portal/`](backstage-portal/) | Portal to create projects and clusters and to inspect them; catalog integration and Software Templates | Backstage (new frontend + backend system) |
+| [`api/`](api/) | `PostgresCluster` (`cnpg.cncp.nl/v1alpha1`): one namespaced API object that bundles everything a production CNPG cluster needs, including metrics, alerts and the CNPG Grafana dashboard. `Project` (`platform.cncp.nl/v1alpha1`): a namespace with its own Prometheus and Grafana, RoleBindings, an optional quota and deletion protection. Both place what runs in the locations through provider-kubernetes | Crossplane v2 |
+| [`portal/`](portal/) | Portal to create projects and clusters and to inspect them; catalog integration and Software Templates | Backstage (new frontend + backend system) |
 
 ## Install
 
@@ -79,24 +79,24 @@ KUBECONFIG=dc-a.kubeconfig operator/install.sh   # CNPG 1.30 + barman-cloud plug
 run here; switch them off per project if you don't want them), then:
 
 ```sh
-crossplane-api/install/install.sh                        # Crossplane 2.4 + function + provider + RBAC + APIs + policies
-crossplane-api/install/add-location.sh dc-a dc-a.kubeconfig   # each location (or add it in the portal)
+api/install/install.sh                        # Crossplane 2.4 + function + provider + RBAC + APIs + policies
+api/install/add-location.sh dc-a dc-a.kubeconfig   # each location (or add it in the portal)
 kubectl apply -f deps/control-plane/project-defaults.yaml   # platform-wide Project settings (edit the ingress domain)
 kubectl apply -f deps/demo/project.yaml                  # Project demo (edit its location)
-kubectl apply -f crossplane-api/examples/minimal.yaml    # a PostgresCluster in demo, running in dc-a
+kubectl apply -f api/examples/minimal.yaml    # a PostgresCluster in demo, running in dc-a
 ```
 
-See [Locations](crossplane-api/README.md#locations) for the protected and recovery sites and
+See [Locations](api/README.md#locations) for the protected and recovery sites and
 geo replication. The portal also runs on the control plane: see
-[`backstage-portal/README.md`](backstage-portal/README.md).
+[`portal/README.md`](portal/README.md).
 
 ## Test
 
 | Command | Needs | Covers |
 |---|---|---|
 | `operator/verify.sh` | helm | vendored charts lint and render with the production values |
-| `make -C crossplane-api test` | crossplane CLI, Docker/podman | every composition renders (PostgresCluster: 22 cases incl. sizes and extensions from their catalogs, geo-replicated, switchover, failover, draining, pinned sites, no Project, the Project's COSI backup bucket, restores from the bucket and from a store of its own; Project: 6 incl. both sites, a COSI bucket with its inventory of backup folders and an unregistered location; Location: 3; empty and observed); output, and the manifests inside provider-kubernetes Objects, validated against the real CRD schemas; status/readiness/dashboard/alert/project-wiring/topology assertions |
-| `cd backstage-portal && yarn tsc && yarn test:all` | node 22 | backend (REST API, permissions, catalog provider, scaffolder action) and frontend (form, list page) |
+| `make -C api test` | crossplane CLI, Docker/podman | every composition renders (PostgresCluster: 22 cases incl. sizes and extensions from their catalogs, geo-replicated, switchover, failover, draining, pinned sites, no Project, the Project's COSI backup bucket, restores from the bucket and from a store of its own; Project: 6 incl. both sites, a COSI bucket with its inventory of backup folders and an unregistered location; Location: 3; empty and observed); output, and the manifests inside provider-kubernetes Objects, validated against the real CRD schemas; status/readiness/dashboard/alert/project-wiring/topology assertions |
+| `cd portal && yarn tsc && yarn test:all` | node 22 | backend (REST API, permissions, catalog provider, scaffolder action) and frontend (form, list page) |
 | `hack/e2e-kind.sh` | kind, helm, Docker/podman, `fs.inotify.max_user_instances` ≥ 512 | a control plane and one location on kind, installed as documented: Project goes Ready in both, a PostgresCluster in it goes Ready in the location (no CNPG on the control plane), `psql` through PgBouncer, the location's Prometheus scrapes it and remote-writes to the project's Prometheus on the control plane, its Grafana has the dashboard, deletion guardrails hold, deletes cascade |
 | `hack/e2e-locations.sh` | kind, helm, Docker/podman, `fs.inotify.max_user_instances` ≥ 512 | a control plane, a protected and a recovery location, MinIO as the shared object store: a Project with both sites, a geo-replicated PostgresCluster, a row written in the protected site shows up in the recovery site, a point-in-time restore into a new cluster stops at the target time and archives to a folder of its own, a switchover promotes it (writes work, the old primary follows), turning geo replication off switches back first and loses nothing, the policy and XRD rules reject what they should |
 

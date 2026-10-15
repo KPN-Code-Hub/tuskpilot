@@ -2,7 +2,7 @@
 
 Everything the platform needs before
 [`operator/`](../operator/) and
-[`crossplane-api/`](../crossplane-api/) are installed, the platform-wide
+[`api/`](../api/) are installed, the platform-wide
 Project settings (`control-plane/project-defaults.yaml`), plus the
 `demo` Project (a namespace with its own Prometheus and Grafana). The
 platform has a **control plane** (Crossplane, the APIs, the portal, each
@@ -95,12 +95,12 @@ MetalLB isn't needed.
 kubectl get svc -n haproxy-ingress   # EXTERNAL-IP is where ingress hosts must resolve to
 ```
 
-## 5. Platform settings: `project-defaults` (after crossplane-api)
+## 5. Platform settings: `project-defaults` (after `api/`)
 
 [`control-plane/project-defaults.yaml`](control-plane/project-defaults.yaml)
 is the `EnvironmentConfig` every Project's composition reads: one per control
 plane, for all Projects, so it goes in before the first one (its CRD comes
-with Crossplane, so after `crossplane-api/install/install.sh`). It holds this
+with Crossplane, so after `api/install/install.sh`). It holds this
 environment's values:
 
 - the Grafana ingress host (`grafana-<project>.paas.cncp.nl`) and the
@@ -114,21 +114,21 @@ environment's values:
   ([`cosi/`](cosi/README.md)); leave `backup` out without COSI, and clusters
   bring a backup store of their own
 
-[`crossplane-api/examples/project-defaults.yaml`](../crossplane-api/examples/project-defaults.yaml)
+[`api/examples/project-defaults.yaml`](../api/examples/project-defaults.yaml)
 documents every key. Projects pick up a change on their next reconcile.
 
 ```sh
 kubectl apply -f control-plane/project-defaults.yaml
 ```
 
-## 6. The `demo` Project (after crossplane-api)
+## 6. The `demo` Project (after `api/`)
 
 A namespace with its own Prometheus and Grafana is a **Project**
 (`platform.cncp.nl/v1alpha1`, see
-[`crossplane-api`](../crossplane-api/README.md#the-project-api)), so
-this step runs on the control plane *after* `crossplane-api/install/install.sh`
+[`api`](../api/README.md#the-project-api)), so
+this step runs on the control plane *after* `api/install/install.sh`
 and after registering the location the demo databases run in
-(`crossplane-api/install/add-location.sh`, with `operator/install.sh`
+(`api/install/add-location.sh`, with `operator/install.sh`
 run against that location first). `demo/project.yaml` names it
 `si-ske-demo`: change that to your location's name.
 

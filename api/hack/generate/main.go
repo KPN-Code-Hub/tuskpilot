@@ -77,7 +77,7 @@ func main() {
 }
 
 func root() string {
-	// hack/generate/main.go -> the crossplane-api directory, whatever the cwd.
+	// hack/generate/main.go -> the api directory, whatever the cwd.
 	_, file, _, _ := runtime.Caller(0)
 	return filepath.Dir(filepath.Dir(filepath.Dir(file)))
 }

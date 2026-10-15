@@ -1,8 +1,8 @@
 /**
  * Extensions a PostgresCluster may install in its databases
  * (spec.database.extensions, spec.databases[].extensions): the
- * EnvironmentConfig postgres-extensions on the control plane (crossplane-api's
- * apis/postgrescluster/extensions.yaml). An admission policy rejects new ones
+ * EnvironmentConfig postgres-extensions on the control plane
+ * (api/apis/postgrescluster/extensions.yaml). An admission policy rejects new ones
  * that aren't in it; the composition adds the settings an extension needs.
  */
 

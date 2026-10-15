@@ -1,7 +1,7 @@
 /**
  * Sizes (SKUs) a PostgresCluster picks with spec.size: the EnvironmentConfig
- * postgres-sizes on the control plane (crossplane-api's
- * apis/postgrescluster/sizes.yaml). The composition gives the instances the
+ * postgres-sizes on the control plane
+ * (api/apis/postgrescluster/sizes.yaml). The composition gives the instances the
  * size's resources and PostgreSQL settings; the portal also suggests its
  * volume sizes for a new cluster.
  */

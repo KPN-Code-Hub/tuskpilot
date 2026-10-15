@@ -1,7 +1,7 @@
-# backstage-portal: CNPG portal
+# portal/: CNPG portal
 
 A Backstage app (1.55, new frontend system) for creating Projects and deploying and viewing every
-`PostgresCluster` from [`crossplane-api`](../crossplane-api). It runs on the platform's
+`PostgresCluster` from [`api`](../api). It runs on the platform's
 control plane, next to Crossplane; the databases run in the locations, which it reads through
 their kubeconfigs. It is a CNPG-only portal in Tuskpilot
 style: a dark theme, the Tuskpilot logo, and a fixed sidebar with Locations, Add location, Projects, New
@@ -67,7 +67,7 @@ XR reports in `status.monitoring.dashboardUid`. The portal embeds `<grafanaUrl>/
 For a cluster in a Project, `<grafanaUrl>` is the project's own Grafana (`status.grafana.url`, on
 the control plane), so nothing needs configuring. Its panels show the locations' metrics only with
 `prometheus.remoteWrite` in project-defaults (see
-[Locations](../crossplane-api/README.md#locations)). As a fallback, e.g. for a Grafana of your
+[Locations](../api/README.md#locations)). As a fallback, e.g. for a Grafana of your
 own:
 
 ```sh
@@ -94,7 +94,7 @@ CNPG_GRAFANA_URL=https://grafana.example.com yarn start
 ### Locations
 
 A location is a Kubernetes cluster the databases run in: a `Location` object (cluster-scoped, see
-[`crossplane-api`](../crossplane-api/README.md#locations)) with the settings, pointing at a Secret
+[`api`](../api/README.md#locations)) with the settings, pointing at a Secret
 in the control plane's `cnpg-locations` namespace (`cnpg.locations.namespace`, label
 `platform.cncp.nl/location=true`) that holds the kubeconfig under the `kubeconfig` key. The backend
 writes the Secret first, then the Location. The kubeconfig never leaves the backend; the API returns

@@ -1,6 +1,6 @@
 # Toegang tot buckets en configuratie-opties
 
-Dit document beschrijft hoe een applicatie toegang krijgt tot een COSI bucket en welke configuratie opties er zijn. Wat over het gedrag van de Cloudian driver staat, is afgeleid uit het gedrag op het cluster en de Project-composition ([composition.yaml](../../crossplane-api/apis/project/composition.yaml)).
+Dit document beschrijft hoe een applicatie toegang krijgt tot een COSI bucket en welke configuratie opties er zijn. Wat over het gedrag van de Cloudian driver staat, is afgeleid uit het gedrag op het cluster en de Project-composition ([composition.yaml](../../api/apis/project/composition.yaml)).
 
 ## Hoe toegang werkt
 
