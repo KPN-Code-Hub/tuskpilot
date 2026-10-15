@@ -98,6 +98,22 @@ geo replication. The portal also runs on the control plane: see
 
 Both e2e scripts use their own kubeconfigs in `.e2e/` and never touch your current context.
 
+## TODO
+
+Work to make the platform run more of itself, without a platform engineer in the loop.
+
+| Item | What it automates |
+|---|---|
+| Automatic major upgrades | Opt-in in-place `pg_upgrade` to the next major in a maintenance window: pre-flight checks (health, extensions, recent backup), a fresh base backup afterwards, statistics refreshed; geo-replicated clusters too |
+| Maintenance windows | A window per cluster or Project in which image rollouts, restarts and upgrades may run, instead of whenever the catalog or spec changes |
+| Image catalog updates | A bot that bumps the digests in the ClusterImageCatalog, rolls them out to a canary location first and promotes them when it stays healthy |
+| Storage autoscaling | Grow a cluster's volumes when disk or WAL usage crosses a threshold, before PostgreSQL stops on a full disk |
+| Restore testing | Regularly restore each cluster's latest backup into a scratch cluster, check it and record the recovery time, so backups are proven to work |
+| Alert routing and auto-remediation | Route each Project's alerts to the team's on-call with runbooks; fix known issues automatically (inactive replication slots, idle-in-transaction sessions, failed archiving retries) |
+| Right-sizing | Suggest or apply a different size (SKU) from observed CPU, memory and connection usage |
+| Automatic cross-location failover | Promote the recovery location when the protected one is down for longer than a set time, with a witness to avoid split brain |
+| Platform upgrades | Upgrade CNPG, the Barman Cloud plugin and Crossplane location by location, canary first, with automatic rollback |
+
 ## Useful commands
 
 Set these once; the commands below run against one location and one CNPG cluster. Most of them
