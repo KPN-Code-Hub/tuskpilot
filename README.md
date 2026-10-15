@@ -113,6 +113,8 @@ Work to make the platform run more of itself, without a platform engineer in the
 | Right-sizing | Suggest or apply a different size (SKU) from observed CPU, memory and connection usage |
 | Automatic cross-location failover | Promote the recovery location when the protected one is down for longer than a set time, with a witness to avoid split brain |
 | Platform upgrades | Upgrade CNPG, the Barman Cloud plugin and Crossplane location by location, canary first, with automatic rollback |
+| Single sign-on | Portal, per-Project Grafana and `kubectl` sign in through the organisation's IdP (OIDC, e.g. Keycloak); Project access follows IdP group membership instead of hand-maintained users (see [Identity and SSO](docs/identity-and-sso.md)) |
+| Personal database access | Engineers get time-limited personal credentials from the portal (IdP login → role with `VALID UNTIL`, member of the Project's read/write group roles), audited per person; later PostgreSQL 18 OAuth logins with a token validator for passwordless `psql` (see [Identity and SSO](docs/identity-and-sso.md)) |
 
 ## Useful commands
 
