@@ -42,12 +42,12 @@ kubectl wait provider.pkg.crossplane.io/provider-kubernetes --for=condition=Heal
 
 echo "==> Location XRD + Composition"
 kubectl apply -f "${API_DIR}/location/definition.yaml"
-kubectl wait xrd/locations.platform.cncp.nl --for=condition=Established --timeout=120s
+kubectl wait xrd/locations.platform.tuskpilot.com --for=condition=Established --timeout=120s
 kubectl apply -f "${API_DIR}/location/composition.yaml"
 
 echo "==> PostgresCluster XRD"
 kubectl apply -f "${API_DIR}/postgrescluster/definition.yaml"
-kubectl wait xrd/postgresclusters.cnpg.cncp.nl --for=condition=Established --timeout=120s
+kubectl wait xrd/postgresclusters.cnpg.tuskpilot.com --for=condition=Established --timeout=120s
 
 echo "==> PostgresCluster Composition"
 # Server-side apply: the embedded Grafana dashboard (~250 KiB) would not fit
@@ -65,7 +65,7 @@ kubectl apply -f "${API_DIR}/postgrescluster/policies.yaml"
 
 echo "==> Project XRD + Composition"
 kubectl apply -f "${API_DIR}/project/definition.yaml"
-kubectl wait xrd/projects.platform.cncp.nl --for=condition=Established --timeout=120s
+kubectl wait xrd/projects.platform.tuskpilot.com --for=condition=Established --timeout=120s
 kubectl apply -f "${API_DIR}/project/composition.yaml"
 
 echo "==> Project admission policies (deletion protection, locations)"

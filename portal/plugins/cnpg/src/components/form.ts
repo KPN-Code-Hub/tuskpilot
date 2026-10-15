@@ -230,7 +230,7 @@ export function normalizeAuditLog(value: string): string {
 /** The manifest the form produces, for the preview pane. */
 export function toManifest(f: ClusterForm) {
   return {
-    apiVersion: 'cnpg.cncp.nl/v1alpha1',
+    apiVersion: 'cnpg.tuskpilot.com/v1alpha1',
     kind: 'PostgresCluster',
     metadata: {
       name: f.name || '<name>',

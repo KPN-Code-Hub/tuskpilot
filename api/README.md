@@ -2,9 +2,9 @@
 
 Two Crossplane **v2** composite resources:
 
-- `cnpg.cncp.nl/v1alpha1 PostgresCluster` (namespaced) turns ~10 lines of YAML into a production
+- `cnpg.tuskpilot.com/v1alpha1 PostgresCluster` (namespaced) turns ~10 lines of YAML into a production
   CloudNativePG setup.
-- `platform.cncp.nl/v1alpha1 Project` (cluster-scoped) is a namespace pre-staged with its own
+- `platform.tuskpilot.com/v1alpha1 Project` (cluster-scoped) is a namespace pre-staged with its own
   Prometheus and Grafana, so every PostgresCluster created in it gets metrics, alerts and a dashboard
   without further setup. See [The Project API](#the-project-api).
 
@@ -15,7 +15,7 @@ and optionally a **recovery** location. A PostgresCluster with `geoReplication` 
 CloudNativePG replica cluster there, ready to take over. See [Locations](#locations).
 
 ```yaml
-apiVersion: cnpg.cncp.nl/v1alpha1
+apiVersion: cnpg.tuskpilot.com/v1alpha1
 kind: PostgresCluster
 metadata:
   name: orders-db
@@ -39,7 +39,7 @@ the control plane.
 
 | Composed resource | When | Notes |
 |---|---|---|
-| `postgresql.cnpg.io/v1 Cluster` | always | Image from the `ClusterImageCatalog` by major version; pod anti-affinity, zone spread, quorum sync replication, managed roles, optional WAL volume and external LoadBalancer. `inheritedMetadata` puts `cnpg.cncp.nl/postgrescluster` and `backstage.io/kubernetes-id` on every pod/PVC/Service. |
+| `postgresql.cnpg.io/v1 Cluster` | always | Image from the `ClusterImageCatalog` by major version; pod anti-affinity, zone spread, quorum sync replication, managed roles, optional WAL volume and external LoadBalancer. `inheritedMetadata` puts `cnpg.tuskpilot.com/postgrescluster` and `backstage.io/kubernetes-id` on every pod/PVC/Service. |
 | `barmancloud.cnpg.io/v1 ObjectStore` + `ScheduledBackup` | `backup.enabled` | Barman Cloud **plugin**, replacing the deprecated in-tree `barmanObjectStore`. WAL archiving, an immediate first base backup, then on schedule, with retention. |
 | `barmancloud.cnpg.io/v1 ObjectStore` `<name>-restore` (protected site) | `restore` | The backup store the cluster restores from, read-only (no retention policy). See [Restore](#postgrescluster-restore). |
 | `postgresql.cnpg.io/v1 Database` (per entry) | `databases[]` | Declarative extra databases and extensions |
@@ -140,7 +140,7 @@ spec:
 ## The Project API
 
 ```yaml
-apiVersion: platform.cncp.nl/v1alpha1
+apiVersion: platform.tuskpilot.com/v1alpha1
 kind: Project
 metadata:
   name: team-payments        # = the namespace
@@ -158,7 +158,7 @@ On the control plane:
 
 | Composed resource | When | Notes |
 |---|---|---|
-| `Namespace <name>` | always | Where the PostgresCluster XRs (and the Secrets they reference) live. Labels `platform.cncp.nl/project` and `dashboards.paas.cncp.nl/scope` = `<name>` (the latter is what every PostgresCluster's `GrafanaDashboard` selects by default), `backstage.io/owner`, Pod Security `baseline`. Annotations `platform.cncp.nl/protected-location` / `recovery-location` for the admission policy |
+| `Namespace <name>` | always | Where the PostgresCluster XRs (and the Secrets they reference) live. Labels `platform.tuskpilot.com/project` and `dashboards.paas.tuskpilot.com/scope` = `<name>` (the latter is what every PostgresCluster's `GrafanaDashboard` selects by default), `backstage.io/owner`, Pod Security `baseline`. Annotations `platform.tuskpilot.com/protected-location` / `recovery-location` for the admission policy |
 | `ServiceAccount` + `Prometheus` + `PersistentVolumeClaim` | `observability.prometheus.enabled` (default) | Scrapes nothing: receives the samples of the project's locations (remote write). The PVC is named as the StatefulSet names it, so a larger `storage.size` grows the volume |
 | `Grafana` + `GrafanaDatasource prometheus` | `observability.grafana.enabled` (default) | Anonymous Viewer, embedding allowed (for the portal), ingress from the EnvironmentConfig. The URL ends up in `status.grafana.url` |
 | `Ingress prometheus-remote-write` | `prometheus.remoteWrite` in project-defaults | Only `/api/v1/write`, for the locations' Prometheus |
@@ -197,7 +197,7 @@ ValidatingAdmissionPolicies (Kubernetes 1.30+) make that explicit:
 
 - A Project with `spec.deletionProtection: true` (the default) can't be deleted. Set it to `false` first.
   The portal does that itself when you delete a project, but only one without PostgresClusters.
-- A project namespace (label `platform.cncp.nl/project`) can only be deleted by Crossplane or the
+- A project namespace (label `platform.tuskpilot.com/project`) can only be deleted by Crossplane or the
   garbage collector, so `kubectl delete ns` doesn't bypass the first rule.
 
 A third policy keeps databases off the control plane: a new PostgresCluster needs a namespace
@@ -233,7 +233,7 @@ kubectl apply -f examples/replicated.yaml                        # primary in dc
 
 ### Location
 
-A location is a **`Location`** (`platform.cncp.nl/v1alpha1`, cluster-scoped,
+A location is a **`Location`** (`platform.tuskpilot.com/v1alpha1`, cluster-scoped,
 [`apis/location`](apis/location/definition.yaml)): settings (`displayName`, `environment`,
 `provider`, `region`, `owner`, `storageClass`, `schedulable`) and `credentials.secretRef`, a Secret
 with its kubeconfig. [`install/add-location.sh`](install/add-location.sh) and the portal write
@@ -241,7 +241,7 @@ that Secret to `cnpg-locations` and create the Location. Anything else that can 
 works too (External Secrets, Sealed Secrets, a GitOps repo with the Location next to it):
 
 ```yaml
-apiVersion: platform.cncp.nl/v1alpha1
+apiVersion: platform.tuskpilot.com/v1alpha1
 kind: Location
 metadata:
   name: dc-a
@@ -294,7 +294,7 @@ The Project composition reads the Location of both sites:
 - Every registered location gets a `ClusterUsage` (`protection.crossplane.io`). Crossplane's
   webhook then refuses to delete the Location while a Project uses it.
 - Locations with `schedulable: false` are recorded in the namespace annotation
-  `platform.cncp.nl/unschedulable-locations`. The admission policy then refuses new
+  `platform.tuskpilot.com/unschedulable-locations`. The admission policy then refuses new
   PostgresClusters when the protected location is closed, and newly turning on `geoReplication`
   when the recovery location is. Existing clusters there stay editable. Projects pick up a changed
   Location on their next reconcile (Crossplane's poll interval, 1 minute by default).
@@ -337,12 +337,12 @@ location, the outcome of its last check: `Pending`, `Reachable`, `Unreachable` o
 (a run after a failure), with `lastCheckTime` and `lastSuccessTime`. It is informational: an
 unreachable bucket doesn't make the Project unready. The failed job's log in the location says
 why; the portal's project page shows it. The namespace annotation
-`platform.cncp.nl/backup-bucket` tells the admission policy the Project has one.
+`platform.tuskpilot.com/backup-bucket` tells the admission policy the Project has one.
 
 `status.backup.servers` is the Project's **inventory of the bucket**: one entry per backup folder
 (Barman server name) a PostgresCluster site archives to, with its cluster, location, PostgreSQL
 version, database and recoverable window. The Project finds them through the label
-`cnpg.cncp.nl/backup-store` on the clusters' `ObjectStore` Objects, and keeps entries after their
+`cnpg.tuskpilot.com/backup-store` on the clusters' `ObjectStore` Objects, and keeps entries after their
 cluster is deleted (`active: false`): the retained bucket still has the backups, and this is where
 a [restore](#postgrescluster-restore) finds them. Folders of clusters deleted before the inventory
 existed aren't listed; restore them by `serverName` all the same.
@@ -546,7 +546,7 @@ go run ./hack/observe project full   # regenerate an observed-state fixture afte
 
 ## Notes
 
-- Grafana: the default `instanceSelector` is `dashboards.paas.cncp.nl/scope: <namespace>`, which
+- Grafana: the default `instanceSelector` is `dashboards.paas.tuskpilot.com/scope: <namespace>`, which
   matches the GrafanaInstances of the paas platform. Override it with
   `monitoring.grafanaDashboard.instanceSelector`.
 - Prometheus: if your Prometheus selects monitors by label (e.g. kube-prometheus-stack's

@@ -73,10 +73,10 @@ kind: Composition
 metadata:
   name: postgrescluster
   labels:
-    cnpg.cncp.nl/api: postgrescluster
+    cnpg.tuskpilot.com/api: postgrescluster
 spec:
   compositeTypeRef:
-    apiVersion: cnpg.cncp.nl/v1alpha1
+    apiVersion: cnpg.tuskpilot.com/v1alpha1
     kind: PostgresCluster
   mode: Pipeline
   pipeline:
@@ -131,7 +131,7 @@ spec:
                  dict store (a backup-like destination), serverName, targetTime. */}}
             {{- $rs := $m.restore | default (dict) }}
 
-            {{- $labels := dict "app.kubernetes.io/managed-by" "crossplane" "app.kubernetes.io/part-of" "cnpg-platform" "cnpg.cncp.nl/postgrescluster" $name }}
+            {{- $labels := dict "app.kubernetes.io/managed-by" "crossplane" "app.kubernetes.io/part-of" "cnpg-platform" "cnpg.tuskpilot.com/postgrescluster" $name }}
 
             {{- /* ================= CloudNativePG Cluster ================= */}}
             {{- $clusterObs := index $observed "cluster" }}
@@ -149,7 +149,7 @@ spec:
                  Changing a placeholder GUC once lastPromotionToken is recorded makes
                  every instance rewrite and reload its config, unblocking the rollout. */}}
             {{- with (and .distributed (dig "lastPromotionToken" "" $cstatus)) }}
-            {{- $_ := set $params "cncp.last_promotion" (. | sha256sum | trunc 16) }}
+            {{- $_ := set $params "tuskpilot.last_promotion" (. | sha256sum | trunc 16) }}
             {{- end }}
             ---
             apiVersion: postgresql.cnpg.io/v1
@@ -165,7 +165,7 @@ spec:
                 {{ $k }}: {{ $v | quote }}
                 {{- end }}
             spec:
-              description: {{ printf "PostgresCluster %s/%s (cnpg.cncp.nl)" $namespace $name | quote }}
+              description: {{ printf "PostgresCluster %s/%s (cnpg.tuskpilot.com)" $namespace $name | quote }}
               instances: {{ $instances }}
               imageCatalogRef:
                 apiGroup: postgresql.cnpg.io
@@ -180,7 +180,7 @@ spec:
               # Backstage Kubernetes plugin find all of them.
               inheritedMetadata:
                 labels:
-                  cnpg.cncp.nl/postgrescluster: {{ $name | quote }}
+                  cnpg.tuskpilot.com/postgrescluster: {{ $name | quote }}
                   backstage.io/kubernetes-id: {{ $name | quote }}
               storage:
                 size: {{ dig "size" "10Gi" $storage | quote }}
@@ -383,10 +383,10 @@ spec:
                 gotemplating.fn.crossplane.io/ready: {{ if index $observed "objectstore" }}"True"{{ else }}"False"{{ end }}
                 # What the Project's inventory of its bucket (status.backup.servers)
                 # records about this folder, and keeps after the cluster is gone.
-                cnpg.cncp.nl/server-name: {{ $m.topology | quote }}
-                cnpg.cncp.nl/postgres-version: {{ int ($spec.postgresVersion | default 17) | toString | quote }}
-                cnpg.cncp.nl/database: {{ dig "name" "app" $db | quote }}
-                cnpg.cncp.nl/database-owner: {{ dig "owner" "app" $db | quote }}
+                cnpg.tuskpilot.com/server-name: {{ $m.topology | quote }}
+                cnpg.tuskpilot.com/postgres-version: {{ int ($spec.postgresVersion | default 17) | toString | quote }}
+                cnpg.tuskpilot.com/database: {{ dig "name" "app" $db | quote }}
+                cnpg.tuskpilot.com/database-owner: {{ dig "owner" "app" $db | quote }}
               labels:
                 {{- range $k, $v := $labels }}
                 {{ $k }}: {{ $v | quote }}
@@ -590,7 +590,7 @@ spec:
               template:
                 metadata:
                   labels:
-                    cnpg.cncp.nl/postgrescluster: {{ $name | quote }}
+                    cnpg.tuskpilot.com/postgrescluster: {{ $name | quote }}
                     backstage.io/kubernetes-id: {{ $name | quote }}
                 spec:
                   containers: []
@@ -752,7 +752,7 @@ spec:
               annotations:
                 {{ setResourceNameAnnotation (printf "secret-%s" $secret) }}
                 gotemplating.fn.crossplane.io/ready: {{ if index $observed (printf "secret-%s" $secret) }}"True"{{ else }}"False"{{ end }}
-                platform.cncp.nl/copy-from: {{ get $copyFrom $secret | default $secret }}
+                platform.tuskpilot.com/copy-from: {{ get $copyFrom $secret | default $secret }}
               labels:
                 {{- range $k, $v := $labels }}
                 {{ $k }}: {{ $v | quote }}
@@ -774,9 +774,9 @@ spec:
             {{- $mon := $spec.monitoring | default (dict) }}
             {{- $dashEnabled := dig "grafanaDashboard" "enabled" true $mon }}
             {{- $dashSelector := dig "grafanaDashboard" "instanceSelector" (dict) $mon }}
-            {{- if not $dashSelector }}{{ $dashSelector = dict "dashboards.paas.cncp.nl/scope" $namespace }}{{ end }}
+            {{- if not $dashSelector }}{{ $dashSelector = dict "dashboards.paas.tuskpilot.com/scope" $namespace }}{{ end }}
             {{- $dashUid := printf "cnpg-%s" (sha1sum (printf "%s/%s" $namespace $name) | trunc 20) }}
-            {{- $labels := dict "app.kubernetes.io/managed-by" "crossplane" "app.kubernetes.io/part-of" "cnpg-platform" "cnpg.cncp.nl/postgrescluster" $name }}
+            {{- $labels := dict "app.kubernetes.io/managed-by" "crossplane" "app.kubernetes.io/part-of" "cnpg-platform" "cnpg.tuskpilot.com/postgrescluster" $name }}
 
             {{- /* ---- observed, normalised: an Object stands for the object it manages ---- */}}
             {{- $live := dict }}
@@ -795,7 +795,7 @@ spec:
             kind: ExtraResources
             requirements:
               project:
-                apiVersion: platform.cncp.nl/v1alpha1
+                apiVersion: platform.tuskpilot.com/v1alpha1
                 kind: Project
                 matchName: {{ $namespace }}
               sizes:
@@ -995,12 +995,12 @@ spec:
             {{- $ann := $obj.metadata.annotations }}
             {{- $key := printf "%s%s" $m.prefix (get $ann "gotemplating.fn.crossplane.io/composition-resource-name") }}
             {{- $ready := get $ann "gotemplating.fn.crossplane.io/ready" }}
-            {{- $copyFrom := get $ann "platform.cncp.nl/copy-from" }}
-            {{- range $a := list "gotemplating.fn.crossplane.io/composition-resource-name" "gotemplating.fn.crossplane.io/ready" "platform.cncp.nl/copy-from" }}{{ $_ := unset $ann $a }}{{ end }}
+            {{- $copyFrom := get $ann "platform.tuskpilot.com/copy-from" }}
+            {{- range $a := list "gotemplating.fn.crossplane.io/composition-resource-name" "gotemplating.fn.crossplane.io/ready" "platform.tuskpilot.com/copy-from" }}{{ $_ := unset $ann $a }}{{ end }}
             {{- if not $ann }}{{ $_ := unset $obj.metadata "annotations" }}{{ end }}
             {{- /* The Project finds the backup folders in its bucket through this label. */}}
             {{- $objLabels := $labels }}
-            {{- if eq $obj.kind "ObjectStore" }}{{ if hasKey $ann "cnpg.cncp.nl/server-name" }}{{ $objLabels = merge (dict "cnpg.cncp.nl/backup-store" "true") $labels }}{{ end }}{{ end }}
+            {{- if eq $obj.kind "ObjectStore" }}{{ if hasKey $ann "cnpg.tuskpilot.com/server-name" }}{{ $objLabels = merge (dict "cnpg.tuskpilot.com/backup-store" "true") $labels }}{{ end }}{{ end }}
             ---
             apiVersion: kubernetes.m.crossplane.io/v1alpha1
             kind: Object
@@ -1010,7 +1010,7 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: {{ $key }}
                 gotemplating.fn.crossplane.io/ready: {{ $ready | quote }}
-                platform.cncp.nl/location: {{ $m.location }}
+                platform.tuskpilot.com/location: {{ $m.location }}
               labels:
                 {{- range $k, $v := $objLabels }}
                 {{ $k }}: {{ $v | quote }}
@@ -1103,7 +1103,7 @@ spec:
             {{- end }}
             {{- with $problem }}{{ $msg = . }}{{ end }}
             ---
-            apiVersion: cnpg.cncp.nl/v1alpha1
+            apiVersion: cnpg.tuskpilot.com/v1alpha1
             kind: PostgresCluster
             status:
               ready: {{ $clusterReady }}

@@ -18,7 +18,7 @@ const CONFIG: BucketsConfig = {
 };
 
 const demo: Project = {
-  apiVersion: 'platform.cncp.nl/v1alpha1',
+  apiVersion: 'platform.tuskpilot.com/v1alpha1',
   kind: 'Project',
   metadata: { name: 'demo' },
   spec: {},

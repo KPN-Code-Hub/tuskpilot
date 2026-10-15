@@ -67,7 +67,7 @@ Cluster has `status.lastPromotionToken`, add a placeholder GUC
 ```yaml
 postgresql:
   parameters:
-    cncp.last_promotion: <first 16 hex chars of sha256(lastPromotionToken)>
+    tuskpilot.last_promotion: <first 16 hex chars of sha256(lastPromotionToken)>
 ```
 
 `lastPromotionToken` is only set after the token was verified and the instance

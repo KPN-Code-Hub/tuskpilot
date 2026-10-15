@@ -64,7 +64,7 @@ describe('create form', () => {
 
 /** As the API server returns it: XRD defaults filled in, plus a field the form doesn't know. */
 const live: PostgresCluster = {
-  apiVersion: 'cnpg.cncp.nl/v1alpha1',
+  apiVersion: 'cnpg.tuskpilot.com/v1alpha1',
   kind: 'PostgresCluster',
   metadata: { name: 'orders-db', namespace: 'demo', labels: { 'backstage.io/owner': 'team-orders' } },
   spec: {
@@ -241,7 +241,7 @@ describe('locations', () => {
     // Without it, the destination and credentials are needed.
     expect(validate({ ...f, backupProjectBucket: false }).backupDestinationPath).toBeDefined();
     const onBucket: PostgresCluster = {
-      apiVersion: 'cnpg.cncp.nl/v1alpha1',
+      apiVersion: 'cnpg.tuskpilot.com/v1alpha1',
       kind: 'PostgresCluster',
       metadata: { name: 'orders-db', namespace: 'demo' },
       spec: { instances: 3, backup: { enabled: true, retentionPolicy: '30d', schedule: '0 0 2 * * *' } },
@@ -253,7 +253,7 @@ describe('locations', () => {
 
   it('switches the primary over with a patch of just primarySite', () => {
     const replicated: PostgresCluster = {
-      apiVersion: 'cnpg.cncp.nl/v1alpha1',
+      apiVersion: 'cnpg.tuskpilot.com/v1alpha1',
       kind: 'PostgresCluster',
       metadata: { name: 'orders-db', namespace: 'demo' },
       spec: {
@@ -280,7 +280,7 @@ describe('locations', () => {
 describe('audit logging', () => {
   const cluster = (parameters?: Record<string, string>) =>
     ({
-      apiVersion: 'cnpg.cncp.nl/v1alpha1',
+      apiVersion: 'cnpg.tuskpilot.com/v1alpha1',
       kind: 'PostgresCluster',
       metadata: { name: 'orders-db', namespace: 'demo' },
       spec: { postgresVersion: 17, instances: 3, ...(parameters ? { postgresql: { parameters } } : {}) },
@@ -325,7 +325,7 @@ describe('audit logging', () => {
 describe('extensions', () => {
   const cluster = (extensions?: string[]) =>
     ({
-      apiVersion: 'cnpg.cncp.nl/v1alpha1',
+      apiVersion: 'cnpg.tuskpilot.com/v1alpha1',
       kind: 'PostgresCluster',
       metadata: { name: 'docs-db', namespace: 'demo' },
       spec: { postgresVersion: 17, instances: 3, database: { name: 'docs', owner: 'docs', ...(extensions ? { extensions } : {}) } },

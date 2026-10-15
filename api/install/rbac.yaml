@@ -88,7 +88,7 @@ metadata:
     rbac.authorization.k8s.io/aggregate-to-admin: "true"
     rbac.authorization.k8s.io/aggregate-to-edit: "true"
 rules:
-  - apiGroups: [cnpg.cncp.nl]
+  - apiGroups: [cnpg.tuskpilot.com]
     resources: [postgresclusters]
     verbs: [get, list, watch, create, update, patch, delete]
 ---
@@ -99,7 +99,7 @@ metadata:
   labels:
     rbac.authorization.k8s.io/aggregate-to-view: "true"
 rules:
-  - apiGroups: [cnpg.cncp.nl]
+  - apiGroups: [cnpg.tuskpilot.com]
     resources: [postgresclusters]
     verbs: [get, list, watch]
 ---
@@ -113,7 +113,7 @@ metadata:
   labels:
     rbac.authorization.k8s.io/aggregate-to-view: "true"
 rules:
-  - apiGroups: [platform.cncp.nl]
+  - apiGroups: [platform.tuskpilot.com]
     resources: [projects]
     verbs: [get, list, watch]
 ---
@@ -122,7 +122,7 @@ kind: ClusterRole
 metadata:
   name: cnpg-platform:projects:admin
 rules:
-  - apiGroups: [platform.cncp.nl]
+  - apiGroups: [platform.tuskpilot.com]
     resources: [projects]
     verbs: [get, list, watch, create, update, patch, delete]
 ---
@@ -136,6 +136,6 @@ metadata:
   labels:
     rbac.authorization.k8s.io/aggregate-to-view: "true"
 rules:
-  - apiGroups: [platform.cncp.nl]
+  - apiGroups: [platform.tuskpilot.com]
     resources: [locations]
     verbs: [get, list, watch]

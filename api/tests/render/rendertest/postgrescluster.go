@@ -130,11 +130,11 @@ func assertPostgresCluster(r *render, dashboardSrc string) {
 		}
 		check(equal(get(obj, "spec", "providerConfigRef"), M{"kind": "ClusterProviderConfig", "name": loc}),
 			"%s: providerConfigRef %s", key, repr(get(obj, "spec", "providerConfigRef")))
-		check(str(obj, "metadata", "annotations", "platform.cncp.nl/location") == loc, "%s: location annotation", key)
+		check(str(obj, "metadata", "annotations", "platform.tuskpilot.com/location") == loc, "%s: location annotation", key)
 		manifest := mp(obj, "spec", "forProvider", "manifest")
 		var leaked []string
 		for _, a := range sortedKeys(mp(manifest, "metadata", "annotations")) {
-			if strings.Contains(a, "crossplane") || strings.HasPrefix(a, "platform.cncp.nl/") {
+			if strings.Contains(a, "crossplane") || strings.HasPrefix(a, "platform.tuskpilot.com/") {
 				leaked = append(leaked, a)
 			}
 		}
@@ -308,9 +308,9 @@ func assertPostgresCluster(r *render, dashboardSrc string) {
 			sum := sha256.Sum256([]byte(pgPrevToken))
 			marker = L{nil, hex.EncodeToString(sum[:])[:16]}
 		}
-		got = L{get(main, "postgresql", "parameters", "cncp.last_promotion"),
-			get(replica, "postgresql", "parameters", "cncp.last_promotion")}
-		check(equal(got, marker), "cncp.last_promotion %s", repr(got))
+		got = L{get(main, "postgresql", "parameters", "tuskpilot.last_promotion"),
+			get(replica, "postgresql", "parameters", "tuskpilot.last_promotion")}
+		check(equal(got, marker), "tuskpilot.last_promotion %s", repr(got))
 	} else if !slices.Contains([]string{"noproject", "bucketpending", "projectbucket", "restored", "restorepending", "sizeunknown"}, kase) {
 		spec := mp(r.live("cluster"), "spec")
 		var ext []string
@@ -335,8 +335,8 @@ func assertPostgresCluster(r *render, dashboardSrc string) {
 	for _, key := range r.keys() {
 		obj := r.composed[key]
 		check(str(obj, "metadata", "namespace") == ns, "%s: not in XR namespace %s", key, ns)
-		check(str(obj, "metadata", "labels", "cnpg.cncp.nl/postgrescluster") == name,
-			"%s: missing cnpg.cncp.nl/postgrescluster label", key)
+		check(str(obj, "metadata", "labels", "cnpg.tuskpilot.com/postgrescluster") == name,
+			"%s: missing cnpg.tuskpilot.com/postgrescluster label", key)
 	}
 
 	// --- readiness / status
@@ -373,10 +373,10 @@ func assertPostgresCluster(r *render, dashboardSrc string) {
 			}
 			spec := mp(r.live(key), "spec")
 			check(equal(get(spec, "resources"), sz.resources), "%s: resources %s != %s", key, repr(get(spec, "resources")), repr(sz.resources))
-			// cncp.last_promotion is the CNPG reload workaround, checked with the topology.
+			// tuskpilot.last_promotion is the CNPG reload workaround, checked with the topology.
 			got := M{}
 			for k, v := range mp(spec, "postgresql", "parameters") {
-				if k != "cncp.last_promotion" {
+				if k != "tuskpilot.last_promotion" {
 					got[k] = v
 				}
 			}
@@ -430,23 +430,23 @@ func assertPostgresCluster(r *render, dashboardSrc string) {
 		switch {
 		case strings.HasSuffix(key, "objectstore") && !strings.HasSuffix(key, "restore-objectstore"):
 			manifest := r.live(key)
-			folder := get(manifest, "metadata", "annotations", "cnpg.cncp.nl/server-name")
+			folder := get(manifest, "metadata", "annotations", "cnpg.tuskpilot.com/server-name")
 			params := mp(r.live(strings.Replace(key, "objectstore", "cluster", 1)), "spec", "plugins", 0, "parameters")
 			archived := get(params, "serverName")
 			if archived == nil {
 				archived = name
 			}
 			check(equal(folder, archived), "%s: server-name annotation %s != the folder archived to", key, repr(folder))
-			check(str(r.composed[key], "metadata", "labels", "cnpg.cncp.nl/backup-store") == "true",
-				"%s: the Project finds backup folders by the cnpg.cncp.nl/backup-store label", key)
+			check(str(r.composed[key], "metadata", "labels", "cnpg.tuskpilot.com/backup-store") == "true",
+				"%s: the Project finds backup folders by the cnpg.tuskpilot.com/backup-store label", key)
 			version := "17"
 			if v := get(xr, "spec", "postgresVersion"); v != nil {
 				version = fmt.Sprint(v)
 			}
-			check(str(manifest, "metadata", "annotations", "cnpg.cncp.nl/postgres-version") == version,
+			check(str(manifest, "metadata", "annotations", "cnpg.tuskpilot.com/postgres-version") == version,
 				"%s: postgres-version annotation", key)
 		case strings.Contains(key, "objectstore"):
-			check(!has(r.composed[key], "cnpg.cncp.nl/backup-store", "metadata", "labels"),
+			check(!has(r.composed[key], "cnpg.tuskpilot.com/backup-store", "metadata", "labels"),
 				"%s: a restore source is not one of this cluster's backup folders", key)
 		}
 	}
@@ -462,7 +462,7 @@ func assertPostgresCluster(r *render, dashboardSrc string) {
 		if primary == protected {
 			key = "objectstore"
 		}
-		check(equal(get(status, "backup", "serverName"), get(r.live(key), "metadata", "annotations", "cnpg.cncp.nl/server-name")),
+		check(equal(get(status, "backup", "serverName"), get(r.live(key), "metadata", "annotations", "cnpg.tuskpilot.com/server-name")),
 			"status.backup.serverName %s is the primary's folder", repr(get(status, "backup")))
 	}
 

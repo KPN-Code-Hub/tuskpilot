@@ -9,7 +9,7 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:
-  name: cnpg.cncp.nl-postgrescluster-size
+  name: cnpg.tuskpilot.com-postgrescluster-size
 spec:
   failurePolicy: Fail
   paramKind:
@@ -17,7 +17,7 @@ spec:
     kind: EnvironmentConfig
   matchConstraints:
     resourceRules:
-      - apiGroups: [cnpg.cncp.nl]
+      - apiGroups: [cnpg.tuskpilot.com]
         apiVersions: ["*"]
         resources: [postgresclusters]
         operations: [CREATE, UPDATE]
@@ -43,9 +43,9 @@ spec:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicyBinding
 metadata:
-  name: cnpg.cncp.nl-postgrescluster-size
+  name: cnpg.tuskpilot.com-postgrescluster-size
 spec:
-  policyName: cnpg.cncp.nl-postgrescluster-size
+  policyName: cnpg.tuskpilot.com-postgrescluster-size
   validationActions: [Deny]
   paramRef:
     name: postgres-sizes
@@ -60,7 +60,7 @@ spec:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:
-  name: cnpg.cncp.nl-postgrescluster-extensions
+  name: cnpg.tuskpilot.com-postgrescluster-extensions
 spec:
   failurePolicy: Fail
   paramKind:
@@ -68,7 +68,7 @@ spec:
     kind: EnvironmentConfig
   matchConstraints:
     resourceRules:
-      - apiGroups: [cnpg.cncp.nl]
+      - apiGroups: [cnpg.tuskpilot.com]
         apiVersions: ["*"]
         resources: [postgresclusters]
         operations: [CREATE, UPDATE]
@@ -107,9 +107,9 @@ spec:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicyBinding
 metadata:
-  name: cnpg.cncp.nl-postgrescluster-extensions
+  name: cnpg.tuskpilot.com-postgrescluster-extensions
 spec:
-  policyName: cnpg.cncp.nl-postgrescluster-extensions
+  policyName: cnpg.tuskpilot.com-postgrescluster-extensions
   validationActions: [Deny]
   paramRef:
     name: postgres-extensions
