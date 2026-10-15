@@ -107,7 +107,7 @@ body:not(:has(.kpn-shell)) main article {
   text-decoration: none;
 }
 
-.kpn-nav__brand svg {
+.kpn-nav__brand > span {
   align-self: flex-start;
 }
 

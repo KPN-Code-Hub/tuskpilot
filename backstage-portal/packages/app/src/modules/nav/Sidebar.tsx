@@ -1,6 +1,6 @@
 import { NavContentBlueprint } from '@backstage/plugin-app-react';
 import { Link, useLocation } from 'react-router-dom';
-import { KpnLogo } from './KpnLogo';
+import { TuskpilotLogo } from './TuskpilotLogo';
 
 type Item = { label: string; to: string; isActive: (path: string) => boolean };
 
@@ -65,8 +65,8 @@ const KpnNav = () => {
   return (
     <nav className="kpn-nav" aria-label="sidebar nav">
       <Link to={CNPG} className="kpn-nav__brand" aria-label="Home">
-        <KpnLogo height={26} />
-        <span className="kpn-nav__product">Managed PostgreSQL</span>
+        <TuskpilotLogo height={26} />
+        <span className="kpn-nav__product">Autonomous Postgres</span>
       </Link>
       <div className="kpn-nav__sections">
         {sections.map(section => (

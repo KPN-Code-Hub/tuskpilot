@@ -1,5 +1,5 @@
 import { SignInPageBlueprint } from '@backstage/plugin-app-react';
-import { KpnLogo } from './KpnLogo';
+import { TuskpilotLogo } from './TuskpilotLogo';
 
 /** The default guest sign-in, centred and branded. */
 export const KpnSignInPage = SignInPageBlueprint.make({
@@ -15,7 +15,7 @@ export const KpnSignInPage = SignInPageBlueprint.make({
             <span
               style={{ display: 'inline-flex', alignItems: 'center', gap: 16 }}
             >
-              <KpnLogo height={34} />
+              <TuskpilotLogo height={34} />
               <span style={{ fontSize: 22, fontWeight: 500, color: '#e9ebf0' }}>
                 Managed PostgreSQL
               </span>

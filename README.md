@@ -1,4 +1,4 @@
-# PostgreSQL Platform as a Service
+# Tuskpilot Autonomous Postgres
 
 A complete PostgreSQL Platform as a Service on Kubernetes, built on
 [CloudNativePG](https://cloudnative-pg.io/) (CNPG), [Crossplane](https://www.crossplane.io/) and
