@@ -1,7 +1,8 @@
 # PostgresCluster: a namespaced Crossplane v2 composite resource that bundles
 # everything a production CloudNativePG database needs (Cluster, Pooler,
-# Barman Cloud ObjectStore + ScheduledBackup, Databases, PodMonitors,
-# PrometheusRule, GrafanaDashboard) behind one small, opinionated API.
+# Barman Cloud ObjectStore + ScheduledBackup, Databases, PodMonitors and
+# custom exporter queries, PrometheusRule, GrafanaDashboard) behind one small,
+# opinionated API.
 #
 # Crossplane v2: apiextensions.crossplane.io/v2 + scope: Namespaced. There is
 # no claim/XR split any more -- users (and Backstage) create PostgresCluster

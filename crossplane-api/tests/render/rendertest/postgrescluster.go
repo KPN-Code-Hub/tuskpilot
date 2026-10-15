@@ -14,20 +14,20 @@ import (
 // One location's worth of objects with backups on, and the recovery site's
 // copy (prefix recovery-). Every member copies the S3 Secret to its location.
 var (
-	pgMember     = set("cluster", "objectstore", "scheduled-backup", "podmonitor", "prometheusrule", "secret-orders-db-s3")
+	pgMember     = set("cluster", "objectstore", "scheduled-backup", "podmonitor", "monitoring-queries", "prometheusrule", "secret-orders-db-s3")
 	pgReplicated = union(pgMember, set("dashboard"), prefixed("recovery-", pgMember))
-	pgBucketSite = set("cluster", "objectstore", "scheduled-backup", "podmonitor", "prometheusrule")
+	pgBucketSite = set("cluster", "objectstore", "scheduled-backup", "podmonitor", "monitoring-queries", "prometheusrule")
 )
 
 var pgExpected = map[string]map[string]bool{
 	"bare":      set("cluster"),
-	"minimal":   set("cluster", "podmonitor", "prometheusrule", "dashboard"),
-	"pinned":    set("cluster", "podmonitor", "prometheusrule", "dashboard"),
+	"minimal":   set("cluster", "podmonitor", "monitoring-queries", "prometheusrule", "dashboard"),
+	"pinned":    set("cluster", "podmonitor", "monitoring-queries", "prometheusrule", "dashboard"),
 	"noproject": set("dashboard"),
 	"production": set("cluster", "objectstore", "scheduled-backup", "database-payments-audit",
-		"pooler-rw", "pooler-ro", "podmonitor", "podmonitor-pooler",
+		"pooler-rw", "pooler-ro", "podmonitor", "monitoring-queries", "podmonitor-pooler",
 		"prometheusrule", "dashboard", "secret-payments-db-s3", "secret-payments-db-reporting"),
-	"secrets": set("cluster", "objectstore", "scheduled-backup", "podmonitor", "prometheusrule",
+	"secrets": set("cluster", "objectstore", "scheduled-backup", "podmonitor", "monitoring-queries", "prometheusrule",
 		"pooler-rw", "podmonitor-pooler", "dashboard",
 		"secret-ledger-db-s3", "secret-ledger-db-reporting"),
 	"replicated": pgReplicated,
@@ -44,17 +44,17 @@ var pgExpected = map[string]map[string]bool{
 	"restored": union(pgBucketSite, set("secret-secrets-db-r-backup-s3", "dashboard", "restore-objectstore"),
 		prefixed("recovery-", union(pgBucketSite, set("secret-secrets-db-r-backup-s3")))),
 	// From a store of its own, without backups: no archive, only the restore store and its credentials.
-	"restorecustom":  set("cluster", "restore-objectstore", "secret-ledger-db-s3", "podmonitor", "prometheusrule"),
+	"restorecustom":  set("cluster", "restore-objectstore", "secret-ledger-db-s3", "podmonitor", "monitoring-queries", "prometheusrule"),
 	"restorepending": set("dashboard"),
-	"sized":          set("cluster", "podmonitor", "prometheusrule", "dashboard"),
-	"sizegone":       set("cluster", "podmonitor", "prometheusrule", "dashboard"),
-	"sizechanged":    set("cluster", "podmonitor", "prometheusrule", "dashboard"),
+	"sized":          set("cluster", "podmonitor", "monitoring-queries", "prometheusrule", "dashboard"),
+	"sizegone":       set("cluster", "podmonitor", "monitoring-queries", "prometheusrule", "dashboard"),
+	"sizechanged":    set("cluster", "podmonitor", "monitoring-queries", "prometheusrule", "dashboard"),
 	// An unknown size: nothing placed until it names one in the catalog.
 	"sizeunknown": set("dashboard"),
 	// The bootstrap database's extensions get a Database of their own.
-	"extensions": set("cluster", "podmonitor", "prometheusrule", "dashboard", "database-docs", "database-analytics"),
+	"extensions": set("cluster", "podmonitor", "monitoring-queries", "prometheusrule", "dashboard", "database-docs", "database-analytics"),
 	// ... unless databases[] lists that database.
-	"extensionslisted": set("cluster", "podmonitor", "prometheusrule", "dashboard", "database-app"),
+	"extensionslisted": set("cluster", "podmonitor", "monitoring-queries", "prometheusrule", "dashboard", "database-app"),
 }
 
 // The postgresql.conf settings the extensions in use bring from the
@@ -544,6 +544,15 @@ func assertPostgresCluster(r *render, dashboardSrc string) {
 		assertDashboard(r, dash, dashboardSrc)
 	}
 
+	// --- custom exporter queries: the Cluster reads them from the ConfigMap next to it
+	if _, ok := r.composed["monitoring-queries"]; ok {
+		cm := r.live("monitoring-queries")
+		ref := list(r.live("cluster"), "spec", "monitoring", "customQueriesConfigMap")
+		check(len(ref) == 1 && str(ref[0], "name") == str(cm, "metadata", "name") && str(ref[0], "key") == "queries",
+			"Cluster spec.monitoring.customQueriesConfigMap should name ConfigMap %s, got %s", str(cm, "metadata", "name"), repr(ref))
+		check(strings.Contains(str(cm, "data", "queries"), "wal_archive:"), "monitoring ConfigMap without the wal_archive query")
+	}
+
 	// --- alerts
 	if _, ok := r.composed["prometheusrule"]; ok {
 		rules := list(r.live("prometheusrule"), "spec", "groups", 0, "rules")
@@ -553,7 +562,7 @@ func assertPostgresCluster(r *render, dashboardSrc string) {
 			alerts = append(alerts, str(rule, "alert"))
 		}
 		excluded := strs(get(xr, "spec", "monitoring", "prometheusRule", "excludeRules"))
-		check(len(alerts) == 19-len(excluded), "expected %d alert rules, got %d", 19-len(excluded), len(alerts))
+		check(len(alerts) == 21-len(excluded), "expected %d alert rules, got %d", 21-len(excluded), len(alerts))
 		var still []string
 		for _, a := range alerts {
 			if slices.Contains(excluded, a) {

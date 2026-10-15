@@ -121,6 +121,40 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
+    crossplane.io/composition-resource-name: monitoring-queries
+  name: ledger-copy-monitoring-queries
+  namespace: payments
+status:
+  atProvider:
+    manifest:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        labels:
+          app.kubernetes.io/managed-by: crossplane
+          app.kubernetes.io/part-of: cnpg-platform
+          cnpg.cncp.nl/postgrescluster: ledger-copy
+        name: ledger-copy
+        namespace: payments
+      spec:
+        podMetricsEndpoints:
+        - port: metrics
+        selector:
+          matchLabels:
+            cnpg.io/cluster: ledger-copy
+            cnpg.io/podRole: instance
+  conditions:
+  - type: Ready
+    status: 'True'
+    reason: Available
+  - type: Synced
+    status: 'True'
+    reason: ReconcileSuccess
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
     crossplane.io/composition-resource-name: prometheusrule
   name: ledger-copy-prometheusrule
   namespace: payments

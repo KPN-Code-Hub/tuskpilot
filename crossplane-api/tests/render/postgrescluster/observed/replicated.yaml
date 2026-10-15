@@ -79,6 +79,22 @@ status:
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
+  name: orders-db-monitoring-queries
+  namespace: payments
+  annotations:
+    crossplane.io/composition-resource-name: monitoring-queries
+status:
+  atProvider:
+    manifest:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: orders-db-monitoring
+        namespace: payments
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
   name: orders-db-prometheusrule
   namespace: payments
   annotations:
@@ -171,6 +187,29 @@ status:
       kind: PodMonitor
       metadata:
         name: orders-db
+        namespace: payments
+  conditions:
+  - type: Ready
+    status: 'True'
+    reason: Available
+  - type: Synced
+    status: 'True'
+    reason: ReconcileSuccess
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: orders-db-recovery-monitoring-queries
+  namespace: payments
+  annotations:
+    crossplane.io/composition-resource-name: recovery-monitoring-queries
+status:
+  atProvider:
+    manifest:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: orders-db-monitoring
         namespace: payments
   conditions:
   - type: Ready

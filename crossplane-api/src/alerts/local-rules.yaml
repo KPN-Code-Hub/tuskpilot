@@ -67,3 +67,33 @@
     severity: warning
     namespace: zznamespacezz
     cnpg_cluster: zzclusterzz
+- alert: CNPGClusterWALArchivingDelayed
+  annotations:
+    summary: CNPG Cluster WAL archiving is falling behind
+    description: |-
+      CloudNativePG Cluster "zznamespacezz/zzclusterzz" has a WAL file that has been waiting {{ $value | humanizeDuration }} to be archived to the object store.
+
+      Until it is, the WAL exists only in this location: losing it loses those transactions, and the replica cluster (geo replication) can't replay them.
+      Check pg_stat_archiver (failed_count, last_failed_wal), the object store's reachability and credentials, and the instance's logs (logger wal-archive).
+  expr: |
+    max(cnpg_wal_archive_oldest_ready_seconds{namespace="zznamespacezz",pod=~"zzclusterzz-([1-9][0-9]*)$"}) > 600
+  for: 5m
+  labels:
+    severity: warning
+    namespace: zznamespacezz
+    cnpg_cluster: zzclusterzz
+- alert: CNPGClusterWALArchivingDelayedCritical
+  annotations:
+    summary: CNPG Cluster WAL archiving is stalled
+    description: |-
+      CloudNativePG Cluster "zznamespacezz/zzclusterzz" has a WAL file that has been waiting {{ $value | humanizeDuration }} to be archived to the object store.
+
+      Until it is, the WAL exists only in this location: losing it loses those transactions, and the replica cluster (geo replication) can't replay them.
+      WAL piles up on the volume while archiving fails. Check pg_stat_archiver (failed_count, last_failed_wal), the object store's reachability and credentials, and the instance's logs (logger wal-archive).
+  expr: |
+    max(cnpg_wal_archive_oldest_ready_seconds{namespace="zznamespacezz",pod=~"zzclusterzz-([1-9][0-9]*)$"}) > 1800
+  for: 5m
+  labels:
+    severity: critical
+    namespace: zznamespacezz
+    cnpg_cluster: zzclusterzz

@@ -349,6 +349,13 @@ spec:
                           {{- end }}
                 {{- end }}
               {{- end }}
+              {{- if $monEnabled }}
+              monitoring:
+                # Next to CNPG's default queries (see the ConfigMap below).
+                customQueriesConfigMap:
+                  - name: {{ $name }}-monitoring
+                    key: queries
+              {{- end }}
               {{- if $backupEnabled }}
               plugins:
                 - name: barman-cloud.cloudnative-pg.io
@@ -623,6 +630,57 @@ spec:
                   cnpg.io/podRole: instance
               podMetricsEndpoints:
                 - port: metrics
+            ---
+            # Custom exporter queries (Cluster.spec.monitoring.customQueriesConfigMap).
+            # wal_archive: the WAL the primary has written but not yet archived to
+            # the object store, i.e. what a loss of this site loses (the RPO of a
+            # failover to the recovery site, which replays WAL from the store).
+            # pending_bytes runs from the start of the oldest segment still marked
+            # .ready (else the current segment) to the current insert position;
+            # oldest_ready_seconds is how long the oldest .ready file (segment or
+            # timeline history) has waited, 0 when archiving keeps up. Standbys and
+            # replica clusters return no row.
+            apiVersion: v1
+            kind: ConfigMap
+            metadata:
+              name: {{ $name }}-monitoring
+              namespace: {{ $namespace }}
+              annotations:
+                {{ setResourceNameAnnotation "monitoring-queries" }}
+                gotemplating.fn.crossplane.io/ready: {{ if index $observed "monitoring-queries" }}"True"{{ else }}"False"{{ end }}
+              labels:
+                {{- range $k, $v := $labels }}
+                {{ $k }}: {{ $v | quote }}
+                {{- end }}
+                # CNPG reloads the queries when this ConfigMap changes.
+                cnpg.io/reload: ""
+            data:
+              queries: |
+                wal_archive:
+                  query: |
+                    SELECT (pg_current_wal_lsn() - '0/0'::pg_lsn)
+                             - COALESCE(r.oldest_segment_start,
+                                 (pg_current_wal_lsn() - '0/0'::pg_lsn) - (pg_walfile_name_offset(pg_current_wal_lsn())).file_offset)
+                             AS pending_bytes
+                         , COALESCE(EXTRACT(EPOCH FROM now() - r.oldest_ready), 0) AS oldest_ready_seconds
+                    FROM (SELECT NOT pg_is_in_recovery() AS primary_instance) p
+                    CROSS JOIN LATERAL (
+                      SELECT min(modification) AS oldest_ready
+                           , min(('x' || lpad(substr(name, 9, 8), 16, '0'))::bit(64)::bigint::numeric * 4294967296
+                               + ('x' || lpad(substr(name, 17, 8), 16, '0'))::bit(64)::bigint
+                                 * pg_size_bytes(current_setting('wal_segment_size')))
+                               FILTER (WHERE name ~ '^[0-9A-F]{24}\.ready$') AS oldest_segment_start
+                      FROM pg_ls_archive_statusdir()
+                      WHERE name LIKE '%.ready'
+                    ) r
+                    WHERE p.primary_instance
+                  metrics:
+                    - pending_bytes:
+                        usage: GAUGE
+                        description: WAL written by the primary and not yet archived to the object store (bytes)
+                    - oldest_ready_seconds:
+                        usage: GAUGE
+                        description: Age of the oldest WAL file waiting to be archived (0 when none is waiting)
             {{- if $poolerEnabled }}
             ---
             # PgBouncer exporter (port "metrics", 9127) on every pooler pod.

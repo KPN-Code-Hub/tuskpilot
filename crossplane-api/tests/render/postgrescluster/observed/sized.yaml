@@ -42,6 +42,22 @@ status:
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
+  name: orders-db-monitoring-queries
+  namespace: demo
+  annotations:
+    crossplane.io/composition-resource-name: monitoring-queries
+status:
+  atProvider:
+    manifest:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: orders-db-monitoring
+        namespace: demo
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
   name: orders-db-prometheusrule
   namespace: demo
   annotations:
