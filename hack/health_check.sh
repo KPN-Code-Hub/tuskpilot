@@ -2,16 +2,17 @@
 # Health check of the geo-replicated cluster drtest in both locations. Run it after setting up geo
 # replication, after a switchover or failover, or any time to see whether the cluster is sound.
 #
-# Usage: ./.demo.sh             read-only checks
-#        PROBE=1 ./.demo.sh     also write a row on the writing side (table healthcheck_probe in the
-#                               postgres database) and wait until every instance in both locations has it
+# Usage: hack/health_check.sh            read-only checks
+#        PROBE=1 hack/health_check.sh    also write a row on the writing side (table healthcheck_probe in the
+#                                        postgres database) and wait until every instance in both locations has it
 # Exits 0 when every check passes, 1 on warnings only, 2 on failures.
 # Override names and thresholds through the environment, e.g. C=other NS=demo MAX_GEO_LAG_MB=128.
 set -uo pipefail
 
-source .env
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${ROOT}/.env"
 
-# .env sets the cluster name, namespace, and the two locations. The script can be run from any context.
+# .env (in the repository root) sets the cluster name, namespace, and the two locations. The script can be run from any context.
 # export cluster_name='drtest'
 # export project_ns='multi-region'
 # export protected_location='protected'
