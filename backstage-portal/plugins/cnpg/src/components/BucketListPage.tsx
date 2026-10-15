@@ -13,7 +13,10 @@ import {
   Text,
   useTable,
 } from '@backstage/ui';
-import type { BucketState, BucketSummary } from '@internal/backstage-plugin-cnpg-common';
+import type {
+  BucketState,
+  BucketSummary,
+} from '@internal/backstage-plugin-cnpg-common';
 import { useMemo, useState } from 'react';
 import useAsyncRetry from 'react-use/esm/useAsyncRetry';
 import useInterval from 'react-use/esm/useInterval';
@@ -41,23 +44,42 @@ export const BucketListPage = () => {
   const projectLink = useRouteRef(projectRouteRef);
   const [filter, setFilter] = useState<Filter>('all');
 
-  const { value, loading, error, retry } = useAsyncRetry(() => api.listBuckets(), [api]);
+  const { value, loading, error, retry } = useAsyncRetry(
+    () => api.listBuckets(),
+    [api],
+  );
   // Sizes are counted by listing every object: the backend caches them for a minute.
   useInterval(retry, 60_000);
 
   const all = useMemo(() => value?.items ?? [], [value]);
   const rows: Row[] = useMemo(
-    () => all.filter(b => filter === 'all' || b.state === filter).map(b => ({ ...b, id: b.name })),
+    () =>
+      all
+        .filter(b => filter === 'all' || b.state === filter)
+        .map(b => ({ ...b, id: b.name })),
     [all, filter],
   );
   const stats = useMemo(() => {
-    const sum = (items: BucketSummary[]) => bytes(items.reduce((n, b) => n + (b.usage?.bytes ?? 0), 0));
+    const sum = (items: BucketSummary[]) =>
+      bytes(items.reduce((n, b) => n + (b.usage?.bytes ?? 0), 0));
     const of = (state: BucketState) => all.filter(b => b.state === state);
     return [
       { label: 'Buckets', value: all.length, hint: `${sum(all)} in total` },
-      { label: 'In use', value: of('project').length, hint: `${sum(of('project'))} of project backups` },
-      { label: 'Orphaned', value: of('orphaned').length, hint: `${sum(of('orphaned'))}; nothing on the cluster uses them` },
-      { label: 'COSI claims', value: of('cosi').length, hint: 'a BucketClaim outside a project' },
+      {
+        label: 'In use',
+        value: of('project').length,
+        hint: `${sum(of('project'))} of project backups`,
+      },
+      {
+        label: 'Orphaned',
+        value: of('orphaned').length,
+        hint: `${sum(of('orphaned'))}; nothing on the cluster uses them`,
+      },
+      {
+        label: 'COSI claims',
+        value: of('cosi').length,
+        hint: 'a BucketClaim outside a project',
+      },
     ];
   }, [all]);
 
@@ -66,7 +88,9 @@ export const BucketListPage = () => {
       id: 'name',
       label: 'Bucket',
       isRowHeader: true,
-      cell: b => <CellText title={b.name} href={bucketLink?.({ name: b.name })} />,
+      cell: b => (
+        <CellText title={b.name} href={bucketLink?.({ name: b.name })} />
+      ),
     },
     {
       id: 'state',
@@ -95,11 +119,28 @@ export const BucketListPage = () => {
     {
       id: 'objects',
       label: 'Objects',
-      cell: b => <CellText title={b.usageError ? 'unknown' : usageText(b.usage).objects} description={b.usageError} />,
+      cell: b => (
+        <CellText
+          title={b.usageError ? 'unknown' : usageText(b.usage).objects}
+          description={b.usageError}
+        />
+      ),
     },
-    { id: 'size', label: 'Size', cell: b => <CellText title={usageText(b.usage).size} /> },
-    { id: 'written', label: 'Last write', cell: b => <CellText title={age(b.usage?.lastModified)} /> },
-    { id: 'age', label: 'Age', cell: b => <CellText title={age(b.createdAt)} /> },
+    {
+      id: 'size',
+      label: 'Size',
+      cell: b => <CellText title={usageText(b.usage).size} />,
+    },
+    {
+      id: 'written',
+      label: 'Last write',
+      cell: b => <CellText title={age(b.usage?.lastModified)} />,
+    },
+    {
+      id: 'age',
+      label: 'Age',
+      cell: b => <CellText title={age(b.createdAt)} />,
+    },
   ];
 
   const { tableProps } = useTable({
@@ -132,12 +173,12 @@ export const BucketListPage = () => {
             />
           )}
           {value?.configured !== false && !value?.storeError && (
-            <div className="kpn-stats">
+            <div className="tp-stats">
               {stats.map(s => (
-                <div key={s.label} className="kpn-stat">
-                  <div className="kpn-stat__label">{s.label}</div>
-                  <div className="kpn-stat__value">{value ? s.value : '…'}</div>
-                  <div className="kpn-stat__hint">{s.hint}</div>
+                <div key={s.label} className="tp-stat">
+                  <div className="tp-stat__label">{s.label}</div>
+                  <div className="tp-stat__value">{value ? s.value : '…'}</div>
+                  <div className="tp-stat__hint">{s.hint}</div>
                 </div>
               ))}
             </div>
@@ -158,7 +199,9 @@ export const BucketListPage = () => {
             loading={loading && !value}
             emptyState={
               <Text color="secondary">
-                {filter === 'all' ? 'No buckets on this account.' : 'No buckets in this state.'}
+                {filter === 'all'
+                  ? 'No buckets on this account.'
+                  : 'No buckets in this state.'}
               </Text>
             }
           />

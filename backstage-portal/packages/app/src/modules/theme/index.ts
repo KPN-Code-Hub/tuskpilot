@@ -1,1 +1,1 @@
-export { kpnTheme } from './kpnTheme';
+export { tuskpilotTheme } from './tuskpilotTheme';

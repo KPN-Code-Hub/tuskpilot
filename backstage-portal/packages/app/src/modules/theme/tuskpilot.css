@@ -1,11 +1,11 @@
 /*
- * KPN look for the portal: dark, quiet surfaces with KPN green as the only
+ * Tuskpilot look for the portal: dark, quiet surfaces with the brand green as the only
  * accent. Overrides Backstage UI (BUI) tokens under the theme name set by
- * kpnTheme.tsx; unlayered rules win over BUI's @layer tokens.
+ * tuskpilotTheme.tsx; unlayered rules win over BUI's @layer tokens.
  */
-body[data-theme-name='kpn'] {
-  --kpn-green: #00c300;
-  --kpn-green-hover: #2fd62f;
+body[data-theme-name='tuskpilot'] {
+  --brand-green: #00c300;
+  --brand-green-hover: #2fd62f;
 
   --bui-font-regular: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
     sans-serif;
@@ -35,18 +35,18 @@ body[data-theme-name='kpn'] {
   --bui-border-1: #262934;
   --bui-border-2: #323644;
 
-  --bui-ring: var(--kpn-green);
-  --bui-accent-bg: var(--kpn-green);
-  --bui-accent-bg-hover: var(--kpn-green-hover);
+  --bui-ring: var(--brand-green);
+  --bui-accent-bg: var(--brand-green);
+  --bui-accent-bg-hover: var(--brand-green-hover);
   --bui-accent-bg-disabled: #1e4d1e;
   --bui-accent-fg: #03140a;
   --bui-accent-fg-disabled: #5f8f5f;
-  --bui-bg-solid: var(--kpn-green);
-  --bui-bg-solid-hover: var(--kpn-green-hover);
+  --bui-bg-solid: var(--brand-green);
+  --bui-bg-solid-hover: var(--brand-green-hover);
   --bui-bg-solid-pressed: #00a800;
   --bui-fg-solid: #03140a;
 
-  --bui-positive-bg: var(--kpn-green);
+  --bui-positive-bg: var(--brand-green);
   --bui-positive-fg-subdued: #6fe46f;
   --bui-fg-positive: #3ddc3d;
   --bui-fg-negative: #ff5c6c;
@@ -60,24 +60,24 @@ body[data-theme-name='kpn'] {
 }
 
 /* The sign-in page (no app shell yet) brings its own logo; drop the MUI banner. */
-body:not(:has(.kpn-shell)) header[class*='BackstageHeader-header'] {
+body:not(:has(.tp-shell)) header[class*='BackstageHeader-header'] {
   display: none;
 }
 
-body:not(:has(.kpn-shell)) main article {
+body:not(:has(.tp-shell)) main article {
   padding-top: 18vh;
 }
 
 /* ---- shell ---------------------------------------------------------- */
 
-.kpn-shell {
+.tp-shell {
   display: grid;
   grid-template-columns: 216px minmax(0, 1fr);
   min-height: 100vh;
   background: var(--bui-bg-app);
 }
 
-.kpn-shell__main {
+.tp-shell__main {
   min-width: 0;
   height: 100vh;
   overflow-y: auto;
@@ -86,7 +86,7 @@ body:not(:has(.kpn-shell)) main article {
 
 /* ---- sidebar -------------------------------------------------------- */
 
-.kpn-nav {
+.tp-nav {
   position: sticky;
   top: 0;
   height: 100vh;
@@ -99,7 +99,7 @@ body:not(:has(.kpn-shell)) main article {
   font-family: var(--bui-font-regular);
 }
 
-.kpn-nav__brand {
+.tp-nav__brand {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -107,17 +107,17 @@ body:not(:has(.kpn-shell)) main article {
   text-decoration: none;
 }
 
-.kpn-nav__brand > span {
+.tp-nav__brand > span {
   align-self: flex-start;
 }
 
-.kpn-nav__product {
+.tp-nav__product {
   color: var(--bui-fg-secondary);
   font-size: 12px;
   letter-spacing: 0.02em;
 }
 
-.kpn-nav__sections {
+.tp-nav__sections {
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -125,13 +125,13 @@ body:not(:has(.kpn-shell)) main article {
   overflow-y: auto;
 }
 
-.kpn-nav__section {
+.tp-nav__section {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.kpn-nav__heading {
+.tp-nav__heading {
   padding: 0 10px 6px;
   color: var(--bui-fg-secondary);
   font-size: 11px;
@@ -140,7 +140,7 @@ body:not(:has(.kpn-shell)) main article {
   text-transform: uppercase;
 }
 
-.kpn-nav__item {
+.tp-nav__item {
   position: relative;
   padding: 7px 10px 7px 14px;
   border-radius: 6px;
@@ -150,18 +150,18 @@ body:not(:has(.kpn-shell)) main article {
   transition: background 120ms ease, color 120ms ease;
 }
 
-.kpn-nav__item:hover {
+.tp-nav__item:hover {
   background: var(--bui-bg-neutral-2);
   color: var(--bui-fg-primary);
 }
 
-.kpn-nav__item[aria-current='page'] {
+.tp-nav__item[aria-current='page'] {
   background: #1c2a1f;
   color: #ffffff;
   font-weight: 500;
 }
 
-.kpn-nav__item[aria-current='page']::before {
+.tp-nav__item[aria-current='page']::before {
   content: '';
   position: absolute;
   left: 4px;
@@ -169,15 +169,15 @@ body:not(:has(.kpn-shell)) main article {
   bottom: 8px;
   width: 3px;
   border-radius: 2px;
-  background: var(--kpn-green);
+  background: var(--brand-green);
 }
 
-.kpn-nav__item:focus-visible {
-  outline: 2px solid var(--kpn-green);
+.tp-nav__item:focus-visible {
+  outline: 2px solid var(--brand-green);
   outline-offset: 1px;
 }
 
-.kpn-nav__footer {
+.tp-nav__footer {
   padding: 0 10px;
   color: var(--bui-fg-disabled);
   font-size: 11px;
@@ -185,15 +185,15 @@ body:not(:has(.kpn-shell)) main article {
 
 /* Narrow screens: the sidebar becomes a compact top bar. */
 @media (max-width: 760px) {
-  .kpn-shell {
+  .tp-shell {
     grid-template-columns: minmax(0, 1fr);
   }
-  .kpn-shell__main {
+  .tp-shell__main {
     height: auto;
     overflow: visible;
     padding: 8px 12px 24px;
   }
-  .kpn-nav {
+  .tp-nav {
     position: static;
     height: auto;
     flex-direction: row;
@@ -204,43 +204,43 @@ body:not(:has(.kpn-shell)) main article {
     border-bottom: 1px solid var(--bui-border-1);
     overflow-x: auto;
   }
-  .kpn-nav__product,
-  .kpn-nav__heading,
-  .kpn-nav__footer {
+  .tp-nav__product,
+  .tp-nav__heading,
+  .tp-nav__footer {
     display: none;
   }
-  .kpn-nav__sections,
-  .kpn-nav__section {
+  .tp-nav__sections,
+  .tp-nav__section {
     flex-direction: row;
     gap: 4px;
     overflow: visible;
   }
-  .kpn-nav__item {
+  .tp-nav__item {
     white-space: nowrap;
   }
 }
 
 /* ---- shared portal components (plugins/cnpg) ------------------------ */
 
-.kpn-stats {
+.tp-stats {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 12px;
 }
 
-.kpn-stat {
+.tp-stat {
   padding: 14px 16px;
   border: 1px solid var(--bui-border-1);
   border-radius: 10px;
   background: var(--bui-bg-neutral-1);
 }
 
-.kpn-stat__label {
+.tp-stat__label {
   color: var(--bui-fg-secondary);
   font-size: 12.5px;
 }
 
-.kpn-stat__value {
+.tp-stat__value {
   margin-top: 6px;
   font-size: 26px;
   font-weight: 600;
@@ -248,13 +248,13 @@ body:not(:has(.kpn-shell)) main article {
   font-variant-numeric: tabular-nums;
 }
 
-.kpn-stat__hint {
+.tp-stat__hint {
   margin-top: 4px;
   color: var(--bui-fg-secondary);
   font-size: 12px;
 }
 
-.kpn-grafana {
+.tp-grafana {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--bui-border-1);
@@ -263,7 +263,7 @@ body:not(:has(.kpn-shell)) main article {
   background: #111217; /* Grafana's own dark background, avoids a flash */
 }
 
-.kpn-grafana__bar {
+.tp-grafana__bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -274,20 +274,20 @@ body:not(:has(.kpn-shell)) main article {
   background: var(--bui-bg-neutral-1);
 }
 
-.kpn-grafana__frame {
+.tp-grafana__frame {
   display: block;
   width: 100%;
   border: 0;
 }
 
-.kpn-logs {
+.tp-logs {
   height: calc(100vh - 290px);
   min-height: 420px;
   padding: 12px;
   background: var(--bui-bg-app);
 }
 
-.kpn-segmented {
+.tp-segmented {
   display: inline-flex;
   padding: 2px;
   gap: 2px;
@@ -296,7 +296,7 @@ body:not(:has(.kpn-shell)) main article {
   background: var(--bui-bg-app);
 }
 
-.kpn-segmented button {
+.tp-segmented button {
   padding: 4px 10px;
   border: 0;
   border-radius: 5px;
@@ -307,11 +307,11 @@ body:not(:has(.kpn-shell)) main article {
   cursor: pointer;
 }
 
-.kpn-segmented button:hover {
+.tp-segmented button:hover {
   color: var(--bui-fg-primary);
 }
 
-.kpn-segmented button[aria-pressed='true'] {
+.tp-segmented button[aria-pressed='true'] {
   background: var(--bui-bg-neutral-3);
   color: var(--bui-fg-primary);
 }

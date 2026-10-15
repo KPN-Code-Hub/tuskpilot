@@ -44,14 +44,18 @@ const FILTERS: Array<{ id: Filter; label: string }> = [
 ];
 const ALL = '__all__';
 
-const rowId = (v: VolumeSummary) => `${v.location}/${v.project}/${v.claim}/${v.volume ?? ''}`;
-const sizeOf = (v: VolumeSummary) => v.capacityBytes ?? quantityBytes(v.capacity) ?? 0;
+const rowId = (v: VolumeSummary) =>
+  `${v.location}/${v.project}/${v.claim}/${v.volume ?? ''}`;
+const sizeOf = (v: VolumeSummary) =>
+  v.capacityBytes ?? quantityBytes(v.capacity) ?? 0;
 
 /** "4.1 GiB (21%)" from the kubelet's numbers; "-" when it isn't mounted. */
 function usedText(v: VolumeSummary): string {
   if (v.usedBytes === undefined) return '-';
   const total = v.capacityBytes ?? quantityBytes(v.capacity);
-  return total ? `${bytes(v.usedBytes)} (${Math.round((v.usedBytes / total) * 100)}%)` : bytes(v.usedBytes);
+  return total
+    ? `${bytes(v.usedBytes)} (${Math.round((v.usedBytes / total) * 100)}%)`
+    : bytes(v.usedBytes);
 }
 
 /** Deletes an orphaned claim or released volume with its storage, after typing its claim name. */
@@ -90,34 +94,49 @@ const DeleteDialog = ({
           <Text>
             {volume.state === 'released' ? (
               <>
-                Deletes released volume <Mono>{volume.volume}</Mono> in {volume.location}, once claim{' '}
-                <Mono>{volume.project}/{volume.claim}</Mono>
+                Deletes released volume <Mono>{volume.volume}</Mono> in{' '}
+                {volume.location}, once claim{' '}
+                <Mono>
+                  {volume.project}/{volume.claim}
+                </Mono>
               </>
             ) : (
               <>
-                Deletes claim <Mono>{volume.project}/{volume.claim}</Mono> in {volume.location}
+                Deletes claim{' '}
+                <Mono>
+                  {volume.project}/{volume.claim}
+                </Mono>{' '}
+                in {volume.location}
                 {volume.volume && (
                   <>
-                    {' '}and its volume <Mono>{volume.volume}</Mono>
+                    {' '}
+                    and its volume <Mono>{volume.volume}</Mono>
                   </>
                 )}
               </>
             )}
-            , with the {volume.capacity ?? ''} disk behind it. This can't be undone.
+            , with the {volume.capacity ?? ''} disk behind it. This can't be
+            undone.
           </Text>
           {volume.cluster && (
             <Text color="secondary">
-              It holds {volume.role === 'wal' ? 'WAL' : 'data'} of deleted cluster {volume.cluster}
-              {volume.instance ? ` (instance ${volume.instance})` : ''}: anything not in the backup bucket is
-              lost.
+              It holds {volume.role === 'wal' ? 'WAL' : 'data'} of deleted
+              cluster {volume.cluster}
+              {volume.instance ? ` (instance ${volume.instance})` : ''}:
+              anything not in the backup bucket is lost.
             </Text>
           )}
           {volume.reclaimPolicy === 'Retain' && (
             <Text color="secondary">
-              Its reclaim policy is Retain: the portal switches it to Delete, so the storage goes too.
+              Its reclaim policy is Retain: the portal switches it to Delete, so
+              the storage goes too.
             </Text>
           )}
-          <TextField label="Type the claim name to confirm" value={confirm} onChange={setConfirm} />
+          <TextField
+            label="Type the claim name to confirm"
+            value={confirm}
+            onChange={setConfirm}
+          />
           {error && <ErrorAlert error={error} />}
         </Flex>
       </DialogBody>
@@ -148,28 +167,44 @@ export const VolumeListPage = () => {
   const api = useApi(cnpgApiRef);
   const projectLink = useRouteRef(projectRouteRef);
   const clusterLink = useRouteRef(clusterRouteRef);
-  const { allowed: canDelete } = usePermission({ permission: cnpgVolumeDeletePermission });
+  const { allowed: canDelete } = usePermission({
+    permission: cnpgVolumeDeletePermission,
+  });
   const [params, setParams] = useSearchParams();
   const [filter, setFilter] = useState<Filter>('all');
   const [location, setLocation] = useState(ALL);
   const [deleting, setDeleting] = useState<VolumeSummary>();
   const project = params.get('project') ?? ALL;
 
-  const { value, loading, error, retry } = useAsyncRetry(() => api.listVolumes(), [api]);
+  const { value, loading, error, retry } = useAsyncRetry(
+    () => api.listVolumes(),
+    [api],
+  );
   // Usage comes from the kubelets; the backend caches it for a minute.
   useInterval(retry, 60_000);
 
   const all = useMemo(() => value?.items ?? [], [value]);
   // A linked project keeps its option while it has no volumes.
   const projects = useMemo(
-    () => [...new Set([...all.map(v => v.project), ...(project === ALL ? [] : [project])])].sort(),
+    () =>
+      [
+        ...new Set([
+          ...all.map(v => v.project),
+          ...(project === ALL ? [] : [project]),
+        ]),
+      ].sort(),
     [all, project],
   );
-  const locations = useMemo(() => [...new Set(all.map(v => v.location))].sort(), [all]);
+  const locations = useMemo(
+    () => [...new Set(all.map(v => v.location))].sort(),
+    [all],
+  );
   const scoped = useMemo(
     () =>
       all.filter(
-        v => (project === ALL || v.project === project) && (location === ALL || v.location === location),
+        v =>
+          (project === ALL || v.project === project) &&
+          (location === ALL || v.location === location),
       ),
     [all, project, location],
   );
@@ -178,22 +213,38 @@ export const VolumeListPage = () => {
       scoped
         .filter(
           v =>
-            filter === 'all' || (filter === 'orphaned' ? isOrphanedVolume(v.state) : v.state === 'in-use'),
+            filter === 'all' ||
+            (filter === 'orphaned'
+              ? isOrphanedVolume(v.state)
+              : v.state === 'in-use'),
         )
         .map(v => ({ ...v, id: rowId(v) })),
     [scoped, filter],
   );
   const stats = useMemo(() => {
-    const sum = (items: VolumeSummary[]) => bytes(items.reduce((n, v) => n + sizeOf(v), 0));
+    const sum = (items: VolumeSummary[]) =>
+      bytes(items.reduce((n, v) => n + sizeOf(v), 0));
     const inUse = scoped.filter(v => v.state === 'in-use');
     const orphaned = scoped.filter(v => isOrphanedVolume(v.state));
     const mounted = scoped.filter(v => v.usedBytes !== undefined);
     const used = mounted.reduce((n, v) => n + (v.usedBytes ?? 0), 0);
     const ofMounted = mounted.reduce((n, v) => n + sizeOf(v), 0);
     return [
-      { label: 'Volumes', value: scoped.length, hint: `${sum(scoped)} provisioned` },
-      { label: 'In use', value: inUse.length, hint: `${sum(inUse)} by running instances` },
-      { label: 'Orphaned', value: orphaned.length, hint: `${sum(orphaned)}; their cluster is gone` },
+      {
+        label: 'Volumes',
+        value: scoped.length,
+        hint: `${sum(scoped)} provisioned`,
+      },
+      {
+        label: 'In use',
+        value: inUse.length,
+        hint: `${sum(inUse)} by running instances`,
+      },
+      {
+        label: 'Orphaned',
+        value: orphaned.length,
+        hint: `${sum(orphaned)}; their cluster is gone`,
+      },
       {
         label: 'Used',
         value: ofMounted ? `${Math.round((used / ofMounted) * 100)}%` : '-',
@@ -241,7 +292,11 @@ export const VolumeListPage = () => {
         <Cell>
           <Flex direction="column" gap="1">
             {v.cluster && v.state === 'in-use' ? (
-              <Link href={clusterLink?.({ namespace: v.project, name: v.cluster })}>{v.cluster}</Link>
+              <Link
+                href={clusterLink?.({ namespace: v.project, name: v.cluster })}
+              >
+                {v.cluster}
+              </Link>
             ) : (
               <Text variant="body-small" color="secondary">
                 {v.cluster ? `${v.cluster} (deleted)` : '-'}
@@ -249,21 +304,33 @@ export const VolumeListPage = () => {
             )}
             {v.role && (
               <Text variant="body-small" color="secondary">
-                {v.instance} · {v.role === 'tablespace' ? `tablespace ${v.tablespace ?? ''}` : v.role}
+                {v.instance} ·{' '}
+                {v.role === 'tablespace'
+                  ? `tablespace ${v.tablespace ?? ''}`
+                  : v.role}
               </Text>
             )}
           </Flex>
         </Cell>
       ),
     },
-    { id: 'location', label: 'Location', cell: v => <CellText title={v.location} description={v.node} /> },
+    {
+      id: 'location',
+      label: 'Location',
+      cell: v => <CellText title={v.location} description={v.node} />,
+    },
     {
       id: 'size',
       label: 'Size',
       cell: v => (
         <CellText
           title={v.capacity ?? v.requested ?? '-'}
-          description={v.resizing || (v.requested && v.capacity && v.requested !== v.capacity) ? `resizing to ${v.requested}` : undefined}
+          description={
+            v.resizing ||
+            (v.requested && v.capacity && v.requested !== v.capacity)
+              ? `resizing to ${v.requested}`
+              : undefined
+          }
         />
       ),
     },
@@ -271,9 +338,18 @@ export const VolumeListPage = () => {
     {
       id: 'storage',
       label: 'Storage class',
-      cell: v => <CellText title={v.storageClass ?? '-'} description={v.reclaimPolicy && `reclaim: ${v.reclaimPolicy}`} />,
+      cell: v => (
+        <CellText
+          title={v.storageClass ?? '-'}
+          description={v.reclaimPolicy && `reclaim: ${v.reclaimPolicy}`}
+        />
+      ),
     },
-    { id: 'age', label: 'Age', cell: v => <CellText title={age(v.createdAt)} /> },
+    {
+      id: 'age',
+      label: 'Age',
+      cell: v => <CellText title={age(v.createdAt)} />,
+    },
     {
       id: 'actions',
       label: '',
@@ -303,7 +379,10 @@ export const VolumeListPage = () => {
     paginationOptions: { pageSize: 25 },
   });
 
-  const option = (label: string) => (id: string) => ({ id, label: id === ALL ? label : id });
+  const option = (label: string) => (id: string) => ({
+    id,
+    label: id === ALL ? label : id,
+  });
 
   return (
     <>
@@ -322,12 +401,12 @@ export const VolumeListPage = () => {
               description={`Its volumes are missing: ${u.message}`}
             />
           ))}
-          <div className="kpn-stats">
+          <div className="tp-stats">
             {stats.map(s => (
-              <div key={s.label} className="kpn-stat">
-                <div className="kpn-stat__label">{s.label}</div>
-                <div className="kpn-stat__value">{value ? s.value : '…'}</div>
-                <div className="kpn-stat__hint">{s.hint}</div>
+              <div key={s.label} className="tp-stat">
+                <div className="tp-stat__label">{s.label}</div>
+                <div className="tp-stat__value">{value ? s.value : '…'}</div>
+                <div className="tp-stat__hint">{s.hint}</div>
               </div>
             ))}
           </div>
@@ -362,7 +441,9 @@ export const VolumeListPage = () => {
             loading={loading && !value}
             emptyState={
               <Text color="secondary">
-                {filter === 'orphaned' ? 'No orphaned volumes.' : 'No volumes of PostgreSQL instances.'}
+                {filter === 'orphaned'
+                  ? 'No orphaned volumes.'
+                  : 'No volumes of PostgreSQL instances.'}
               </Text>
             }
           />

@@ -76,13 +76,13 @@ export const GrafanaDashboard = ({
   const src = grafanaLink(grafanaUrl, uid, { ...link, embed: true });
 
   return (
-    <div className="kpn-grafana">
-      <div className="kpn-grafana__bar">
+    <div className="tp-grafana">
+      <div className="tp-grafana__bar">
         <Text variant="body-small" color="secondary">
           CloudNativePG / {namespace} / {name}
         </Text>
         <Flex gap="2" align="center">
-          <div className="kpn-segmented" role="group" aria-label="Time range">
+          <div className="tp-segmented" role="group" aria-label="Time range">
             {RANGES.map(r => (
               <button
                 key={r}
@@ -107,7 +107,7 @@ export const GrafanaDashboard = ({
       </div>
       <iframe
         key={src}
-        className="kpn-grafana__frame"
+        className="tp-grafana__frame"
         title={`Grafana dashboard ${namespace}/${name}`}
         src={src}
         style={{ height, minHeight: 520 }}

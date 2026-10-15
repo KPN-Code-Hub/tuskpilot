@@ -1,10 +1,16 @@
 import { createFrontendModule } from '@backstage/frontend-plugin-api';
-import { kpnTheme } from '../theme';
+import { tuskpilotTheme } from '../theme';
 import { AppShell, RootRedirect } from './AppShell';
-import { KpnSignInPage } from './SignIn';
+import { TuskpilotSignInPage } from './SignIn';
 import { SidebarContent } from './Sidebar';
 
 export const navModule = createFrontendModule({
   pluginId: 'app',
-  extensions: [SidebarContent, AppShell, RootRedirect, KpnSignInPage, kpnTheme],
+  extensions: [
+    SidebarContent,
+    AppShell,
+    RootRedirect,
+    TuskpilotSignInPage,
+    tuskpilotTheme,
+  ],
 });

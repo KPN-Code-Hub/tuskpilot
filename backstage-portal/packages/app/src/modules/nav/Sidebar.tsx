@@ -17,7 +17,8 @@ const isClusterPath = (p: string) =>
 const isProjectPath = (p: string) =>
   p.startsWith(`${CNPG}/projects`) && !p.startsWith(`${CNPG}/projects/create`);
 const isLocationPath = (p: string) =>
-  p.startsWith(`${CNPG}/locations`) && !p.startsWith(`${CNPG}/locations/create`);
+  p.startsWith(`${CNPG}/locations`) &&
+  !p.startsWith(`${CNPG}/locations/create`);
 
 /** The portal is CNPG-only, so the nav is a fixed list rather than every installed page. */
 const sections: Array<{ title: string; items: Item[] }> = [
@@ -41,42 +42,58 @@ const sections: Array<{ title: string; items: Item[] }> = [
         to: `${CNPG}/projects/create`,
         isActive: p => p.startsWith(`${CNPG}/projects/create`),
       },
-      { label: 'Volumes', to: `${CNPG}/volumes`, isActive: p => p.startsWith(`${CNPG}/volumes`) },
-      { label: 'Buckets', to: `${CNPG}/buckets`, isActive: p => p.startsWith(`${CNPG}/buckets`) },
+      {
+        label: 'Volumes',
+        to: `${CNPG}/volumes`,
+        isActive: p => p.startsWith(`${CNPG}/volumes`),
+      },
+      {
+        label: 'Buckets',
+        to: `${CNPG}/buckets`,
+        isActive: p => p.startsWith(`${CNPG}/buckets`),
+      },
     ],
   },
   {
     title: 'Database',
     items: [
       { label: 'PostgreSQL', to: CNPG, isActive: isClusterPath },
-      { label: 'New cluster', to: `${CNPG}/create`, isActive: p => p.startsWith(`${CNPG}/create`) },
+      {
+        label: 'New cluster',
+        to: `${CNPG}/create`,
+        isActive: p => p.startsWith(`${CNPG}/create`),
+      },
     ],
   },
   {
     title: 'Security',
     items: [
-      { label: 'Audit logs', to: `${CNPG}/audit`, isActive: p => p.startsWith(`${CNPG}/audit`) },
+      {
+        label: 'Audit logs',
+        to: `${CNPG}/audit`,
+        isActive: p => p.startsWith(`${CNPG}/audit`),
+      },
     ],
   },
 ];
 
-const KpnNav = () => {
+const TuskpilotNav = () => {
   const { pathname } = useLocation();
   return (
-    <nav className="kpn-nav" aria-label="sidebar nav">
-      <Link to={CNPG} className="kpn-nav__brand" aria-label="Home">
+    <nav className="tp-nav" aria-label="sidebar nav">
+      <Link to={CNPG} className="tp-nav__brand" aria-label="Home">
         <TuskpilotLogo height={26} />
-        <span className="kpn-nav__product">Autonomous Postgres</span>
+        <span className="tp-nav__product">Autonomous Postgres</span>
       </Link>
-      <div className="kpn-nav__sections">
+      <div className="tp-nav__sections">
         {sections.map(section => (
-          <div key={section.title} className="kpn-nav__section">
-            <div className="kpn-nav__heading">{section.title}</div>
+          <div key={section.title} className="tp-nav__section">
+            <div className="tp-nav__heading">{section.title}</div>
             {section.items.map(item => (
               <Link
                 key={item.to}
                 to={item.to}
-                className="kpn-nav__item"
+                className="tp-nav__item"
                 aria-current={item.isActive(pathname) ? 'page' : undefined}
               >
                 {item.label}
@@ -85,11 +102,11 @@ const KpnNav = () => {
           </div>
         ))}
       </div>
-      <div className="kpn-nav__footer">CloudNativePG · Crossplane</div>
+      <div className="tp-nav__footer">CloudNativePG · Crossplane</div>
     </nav>
   );
 };
 
 export const SidebarContent = NavContentBlueprint.make({
-  params: { component: () => <KpnNav /> },
+  params: { component: () => <TuskpilotNav /> },
 });

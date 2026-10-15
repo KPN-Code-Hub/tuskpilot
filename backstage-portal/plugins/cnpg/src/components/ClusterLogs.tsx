@@ -36,8 +36,11 @@ export const ClusterLogs = ({
   const api = useApi(cnpgApiRef);
   const multiLocation = new Set(pods.map(p => p.location)).size > 1;
   const fallback =
-    pods.find(p => p.name === currentPrimary && (!primaryLocation || p.location === primaryLocation)) ??
-    pods[0];
+    pods.find(
+      p =>
+        p.name === currentPrimary &&
+        (!primaryLocation || p.location === primaryLocation),
+    ) ?? pods[0];
   const [selected, setSelected] = useState<string>();
   // The selected pod can disappear (failover, scale-down): fall back to the primary.
   const current = pods.find(p => podKey(p) === selected) ?? fallback;
@@ -50,13 +53,26 @@ export const ClusterLogs = ({
 
   const state = useAsyncRetry(
     async () =>
-      pod ? api.getPodLogs(namespace, name, { pod, location, tailLines, previous }) : undefined,
+      pod
+        ? api.getPodLogs(namespace, name, {
+            pod,
+            location,
+            tailLines,
+            previous,
+          })
+        : undefined,
     [api, namespace, name, pod, location, tailLines, previous],
   );
-  useInterval(state.retry, follow && !previous && !state.loading ? 5_000 : null);
+  useInterval(
+    state.retry,
+    follow && !previous && !state.loading ? 5_000 : null,
+  );
 
   const raw = state.value?.text ?? '';
-  const text = useMemo(() => (view === 'parsed' ? formatLogs(raw) : raw), [raw, view]);
+  const text = useMemo(
+    () => (view === 'parsed' ? formatLogs(raw) : raw),
+    [raw, view],
+  );
 
   if (!pod) {
     return (
@@ -72,14 +88,16 @@ export const ClusterLogs = ({
     const url = URL.createObjectURL(new Blob([raw], { type: 'text/plain' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${multiLocation ? `${location}-` : ''}${namespace}-${pod}${previous ? '-previous' : ''}.log`;
+    a.download = `${multiLocation ? `${location}-` : ''}${namespace}-${pod}${
+      previous ? '-previous' : ''
+    }.log`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="kpn-grafana">
-      <div className="kpn-grafana__bar">
+    <div className="tp-grafana">
+      <div className="tp-grafana__bar">
         <Flex gap="3" align="end">
           <Select
             label="Pod"
@@ -87,10 +105,16 @@ export const ClusterLogs = ({
             onChange={key => setSelected(String(key))}
             options={pods.map(p => ({
               id: podKey(p),
-              label: multiLocation ? `${p.name} (${p.role}, ${p.location})` : `${p.name} (${p.role})`,
+              label: multiLocation
+                ? `${p.name} (${p.role}, ${p.location})`
+                : `${p.name} (${p.role})`,
             }))}
           />
-          <Switch label="Previous container" isSelected={previous} onChange={setPrevious} />
+          <Switch
+            label="Previous container"
+            isSelected={previous}
+            onChange={setPrevious}
+          />
           <Switch
             label="Follow"
             isSelected={follow && !previous}
@@ -99,7 +123,7 @@ export const ClusterLogs = ({
           />
         </Flex>
         <Flex gap="2" align="center">
-          <div className="kpn-segmented" role="group" aria-label="Lines">
+          <div className="tp-segmented" role="group" aria-label="Lines">
             {TAILS.map(t => (
               <button
                 key={t}
@@ -111,9 +135,14 @@ export const ClusterLogs = ({
               </button>
             ))}
           </div>
-          <div className="kpn-segmented" role="group" aria-label="Format">
+          <div className="tp-segmented" role="group" aria-label="Format">
             {(['parsed', 'raw'] as View[]).map(v => (
-              <button key={v} type="button" aria-pressed={v === view} onClick={() => setView(v)}>
+              <button
+                key={v}
+                type="button"
+                aria-pressed={v === view}
+                onClick={() => setView(v)}
+              >
                 {v === 'parsed' ? 'Readable' : 'JSON'}
               </button>
             ))}
@@ -121,7 +150,7 @@ export const ClusterLogs = ({
         </Flex>
       </div>
       {state.error && <ErrorAlert error={state.error} />}
-      <div className="kpn-logs">
+      <div className="tp-logs">
         {state.value && !raw && (
           <Text color="secondary">
             No output{previous ? ' from a previous container' : ''}.

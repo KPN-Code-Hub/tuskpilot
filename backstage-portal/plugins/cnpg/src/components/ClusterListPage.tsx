@@ -34,11 +34,16 @@ export const ClusterListPage = () => {
   const api = useApi(cnpgApiRef);
   const clusterLink = useRouteRef(clusterRouteRef);
   const createLink = useRouteRef(createClusterRouteRef);
-  const { allowed: canCreate } = usePermission({ permission: cnpgClusterCreatePermission });
+  const { allowed: canCreate } = usePermission({
+    permission: cnpgClusterCreatePermission,
+  });
   const [namespace, setNamespace] = useState<string>(ALL);
   const [search, setSearch] = useState('');
 
-  const { value, loading, error, retry } = useAsyncRetry(() => api.listClusters(), [api]);
+  const { value, loading, error, retry } = useAsyncRetry(
+    () => api.listClusters(),
+    [api],
+  );
   // PostgresCluster status changes over minutes; poll instead of a manual refresh button.
   useInterval(retry, 15_000);
 
@@ -51,7 +56,11 @@ export const ClusterListPage = () => {
     () =>
       (value ?? [])
         .filter(c => namespace === ALL || c.namespace === namespace)
-        .filter(c => !search || `${c.namespace}/${c.name}`.includes(search.toLowerCase()))
+        .filter(
+          c =>
+            !search ||
+            `${c.namespace}/${c.name}`.includes(search.toLowerCase()),
+        )
         .map(c => ({ ...c, id: `${c.namespace}/${c.name}` })),
     [value, namespace, search],
   );
@@ -69,7 +78,11 @@ export const ClusterListPage = () => {
         />
       ),
     },
-    { id: 'namespace', label: 'Project', cell: c => <CellText title={c.namespace} /> },
+    {
+      id: 'namespace',
+      label: 'Project',
+      cell: c => <CellText title={c.namespace} />,
+    },
     {
       id: 'status',
       label: 'Status',
@@ -82,7 +95,9 @@ export const ClusterListPage = () => {
     {
       id: 'version',
       label: 'PostgreSQL',
-      cell: c => <CellText title={c.postgresVersion ? String(c.postgresVersion) : '-'} />,
+      cell: c => (
+        <CellText title={c.postgresVersion ? String(c.postgresVersion) : '-'} />
+      ),
     },
     {
       id: 'instances',
@@ -94,7 +109,11 @@ export const ClusterListPage = () => {
         />
       ),
     },
-    { id: 'primary', label: 'Primary', cell: c => <CellText title={c.currentPrimary ?? '-'} /> },
+    {
+      id: 'primary',
+      label: 'Primary',
+      cell: c => <CellText title={c.currentPrimary ?? '-'} />,
+    },
     {
       id: 'location',
       label: 'Location',
@@ -103,7 +122,9 @@ export const ClusterListPage = () => {
           title={c.primaryLocation || '-'}
           description={
             c.recoveryLocation
-              ? `+ replica in ${c.primarySite === 'recovery' ? c.location : c.recoveryLocation}`
+              ? `+ replica in ${
+                  c.primarySite === 'recovery' ? c.location : c.recoveryLocation
+                }`
               : undefined
           }
         />
@@ -115,33 +136,60 @@ export const ClusterListPage = () => {
       cell: c => (
         <CellText
           title={
-            [c.pooler && 'pooler', c.backup && 'backups', c.extensions.includes(VECTOR_EXTENSION) && 'pgvector']
+            [
+              c.pooler && 'pooler',
+              c.backup && 'backups',
+              c.extensions.includes(VECTOR_EXTENSION) && 'pgvector',
+            ]
               .filter(Boolean)
               .join(', ') || '-'
           }
         />
       ),
     },
-    { id: 'age', label: 'Age', cell: c => <CellText title={age(c.createdAt)} /> },
+    {
+      id: 'age',
+      label: 'Age',
+      cell: c => <CellText title={age(c.createdAt)} />,
+    },
   ];
 
   const stats = useMemo(() => {
     const all = value ?? [];
     const count = (h: string) => all.filter(c => health(c) === h).length;
     return [
-      { label: 'Clusters', value: all.length, hint: `${namespaces.length} project${namespaces.length === 1 ? '' : 's'}` },
-      { label: 'Healthy', value: count('healthy'), hint: 'Ready in Crossplane and CNPG' },
+      {
+        label: 'Clusters',
+        value: all.length,
+        hint: `${namespaces.length} project${
+          namespaces.length === 1 ? '' : 's'
+        }`,
+      },
+      {
+        label: 'Healthy',
+        value: count('healthy'),
+        hint: 'Ready in Crossplane and CNPG',
+      },
       {
         label: 'Needs attention',
         value: count('degraded') + count('progressing'),
-        hint: `${count('degraded')} degraded, ${count('progressing')} provisioning`,
+        hint: `${count('degraded')} degraded, ${count(
+          'progressing',
+        )} provisioning`,
       },
       {
         label: 'Instances ready',
-        value: `${all.reduce((n, c) => n + c.readyInstances, 0)}/${all.reduce((n, c) => n + c.instances, 0)}`,
+        value: `${all.reduce((n, c) => n + c.readyInstances, 0)}/${all.reduce(
+          (n, c) => n + c.instances,
+          0,
+        )}`,
         hint: 'PostgreSQL pods',
       },
-      { label: 'With backups', value: all.filter(c => c.backup).length, hint: 'Barman Cloud' },
+      {
+        label: 'With backups',
+        value: all.filter(c => c.backup).length,
+        hint: 'Barman Cloud',
+      },
     ];
   }, [value, namespaces]);
 
@@ -167,12 +215,12 @@ export const ClusterListPage = () => {
       <Container>
         <Flex direction="column" gap="4">
           {error && <ErrorAlert error={error} />}
-          <div className="kpn-stats">
+          <div className="tp-stats">
             {stats.map(s => (
-              <div key={s.label} className="kpn-stat">
-                <div className="kpn-stat__label">{s.label}</div>
-                <div className="kpn-stat__value">{value ? s.value : '…'}</div>
-                <div className="kpn-stat__hint">{s.hint}</div>
+              <div key={s.label} className="tp-stat">
+                <div className="tp-stat__label">{s.label}</div>
+                <div className="tp-stat__value">{value ? s.value : '…'}</div>
+                <div className="tp-stat__hint">{s.hint}</div>
               </div>
             ))}
           </div>
@@ -199,7 +247,8 @@ export const ClusterListPage = () => {
             loading={loading && !value}
             emptyState={
               <Text color="secondary">
-                No PostgresClusters found{namespace !== ALL ? ` in ${namespace}` : ''}.
+                No PostgresClusters found
+                {namespace !== ALL ? ` in ${namespace}` : ''}.
               </Text>
             }
           />

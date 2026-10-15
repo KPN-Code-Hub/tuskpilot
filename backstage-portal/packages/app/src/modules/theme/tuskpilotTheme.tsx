@@ -7,8 +7,8 @@ import {
   UnifiedThemeProvider,
 } from '@backstage/theme';
 
-/** KPN brand colours; mirrored as CSS tokens in ./kpn.css for Backstage UI. */
-export const kpn = {
+/** Tuskpilot brand colours; mirrored as CSS tokens in ./tuskpilot.css for Backstage UI. */
+export const tp = {
   green: '#00c300',
   bg: '#0e0f13',
   surface: '#16181f',
@@ -20,7 +20,7 @@ export const kpn = {
 
 // Backstage's MUI page headers (sign-in, catalog pages) become a flat dark bar.
 const flat = genPageTheme({
-  colors: [kpn.surface, kpn.surface],
+  colors: [tp.surface, tp.surface],
   shape: 'none',
 });
 const pageTheme = Object.fromEntries(
@@ -30,18 +30,18 @@ const pageTheme = Object.fromEntries(
 const theme = createUnifiedTheme({
   palette: {
     ...palettes.dark,
-    primary: { main: kpn.green },
-    secondary: { main: kpn.green },
-    background: { default: kpn.bg, paper: kpn.surface },
-    text: { primary: kpn.text, secondary: kpn.textMuted },
-    link: kpn.green,
+    primary: { main: tp.green },
+    secondary: { main: tp.green },
+    background: { default: tp.bg, paper: tp.surface },
+    text: { primary: tp.text, secondary: tp.textMuted },
+    link: tp.green,
     linkHover: '#33d633',
     navigation: {
       ...palettes.dark.navigation,
-      background: kpn.surface,
-      indicator: kpn.green,
-      color: kpn.textMuted,
-      selectedColor: kpn.text,
+      background: tp.surface,
+      indicator: tp.green,
+      color: tp.textMuted,
+      selectedColor: tp.text,
     },
   },
   pageTheme,
@@ -49,18 +49,18 @@ const theme = createUnifiedTheme({
 });
 
 /**
- * The only theme in the portal. The `data-theme-name="kpn"` attribute it sets
- * on <body> scopes the Backstage UI token overrides in ./kpn.css.
+ * The only theme in the portal. The `data-theme-name="tuskpilot"` attribute it sets
+ * on <body> scopes the Backstage UI token overrides in ./tuskpilot.css.
  */
-export const kpnTheme = ThemeBlueprint.make({
-  name: 'kpn',
+export const tuskpilotTheme = ThemeBlueprint.make({
+  name: 'tuskpilot',
   params: {
     theme: {
-      id: 'kpn',
-      title: 'KPN',
+      id: 'tuskpilot',
+      title: 'Tuskpilot',
       variant: 'dark',
       Provider: ({ children }) => (
-        <UnifiedThemeProvider theme={theme} themeName="kpn">
+        <UnifiedThemeProvider theme={theme} themeName="tuskpilot">
           {children}
         </UnifiedThemeProvider>
       ),

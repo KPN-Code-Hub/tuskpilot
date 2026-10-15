@@ -3,8 +3,8 @@
 A Backstage app (1.55, new frontend system) for creating Projects and deploying and viewing every
 `PostgresCluster` from [`crossplane-api`](../crossplane-api). It runs on the platform's
 control plane, next to Crossplane; the databases run in the locations, which it reads through
-their kubeconfigs. It is a CNPG-only portal in KPN
-style: a dark theme, the KPN logo, and a fixed sidebar with Locations, Add location, Projects, New
+their kubeconfigs. It is a CNPG-only portal in Tuskpilot
+style: a dark theme, the Tuskpilot logo, and a fixed sidebar with Locations, Add location, Projects, New
 project, Volumes, Buckets, Audit logs, PostgreSQL and New cluster.
 
 | Feature | Where |
@@ -136,7 +136,7 @@ a `ClusterUsage` on its Locations.
 
 ### Look and feel
 
-`packages/app/src/modules/theme` holds the KPN theme (the only theme) and the token overrides for
+`packages/app/src/modules/theme` holds the Tuskpilot theme (the only theme) and the token overrides for
 Backstage UI. `packages/app/src/modules/nav` holds the logo, the sidebar, the app shell and the
 sign-in page. `app.packages.include` in `app-config.yaml` loads only the catalog and cnpg frontend
 plugins; the other plugins stay in `packages/app/package.json` but are not bundled into the app.

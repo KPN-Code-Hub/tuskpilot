@@ -24,9 +24,9 @@ export const AppShell = createExtension({
   output: [coreExtensionData.reactElement],
   factory: ({ inputs }) => [
     coreExtensionData.reactElement(
-      <div className="kpn-shell">
+      <div className="tp-shell">
         {inputs.nav.get(coreExtensionData.reactElement)}
-        <main className="kpn-shell__main">
+        <main className="tp-shell__main">
           {inputs.content.get(coreExtensionData.reactElement)}
         </main>
       </div>,
