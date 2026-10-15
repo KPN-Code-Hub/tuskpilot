@@ -17,7 +17,7 @@ export const TuskpilotSignInPage = SignInPageBlueprint.make({
             >
               <TuskpilotLogo height={34} />
               <span style={{ fontSize: 22, fontWeight: 500, color: '#e9ebf0' }}>
-                Managed PostgreSQL
+                Autonomous Postgres
               </span>
             </span>
           }
