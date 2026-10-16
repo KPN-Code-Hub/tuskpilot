@@ -1,7 +1,7 @@
 import { mockServices } from '@backstage/backend-test-utils';
 import { ConflictError, InputError } from '@backstage/errors';
 import { ApiException, CoreV1Api, CustomObjectsApi, KubeConfig } from '@kubernetes/client-node';
-import { LocationService } from './LocationService';
+import { imageVolumeCheck, LocationService } from './LocationService';
 
 // Nothing listens there: health probes fail fast instead of reaching out.
 const KUBECONFIG = `
@@ -202,5 +202,39 @@ describe('LocationService', () => {
     const kc = await service.kubeConfig('prod-ams');
     expect(kc.getCurrentCluster()?.server).toBe('https://127.0.0.1:9');
     expect(core.readNamespacedSecret).toHaveBeenCalledWith({ namespace: 'cnpg-locations', name: 'prod-ams' });
+  });
+});
+
+describe('imageVolumeCheck', () => {
+  const node = (name: string, runtime: string) => ({
+    metadata: { name },
+    status: { nodeInfo: { containerRuntimeVersion: runtime } },
+  }) as any;
+  const accepted = { status: 'fulfilled', value: { spec: { volumes: [{ name: 'ext', image: { reference: 'busybox' } }] } } } as const;
+
+  it('passes when the API server accepts image volumes and every runtime supports them', () => {
+    const check = imageVolumeCheck(accepted as any, [node('a', 'containerd://2.1.9'), node('b', 'cri-o://1.31.2')]);
+    expect(check.status).toBe('ok');
+  });
+
+  it('warns when the feature gate is off', () => {
+    const check = imageVolumeCheck({ status: 'rejected', reason: apiError(422, 'must specify a volume type') }, []);
+    expect(check).toMatchObject({ status: 'warning', message: expect.stringContaining('feature gate is off') });
+  });
+
+  it('warns when the API server dropped the image volume', () => {
+    const check = imageVolumeCheck({ status: 'fulfilled', value: { spec: { containers: [], volumes: [{ name: 'ext' }] } } }, []);
+    expect(check).toMatchObject({ status: 'warning', message: expect.stringContaining('dropped') });
+  });
+
+  it('names the nodes with a runtime too old for image volumes', () => {
+    const check = imageVolumeCheck(accepted as any, [node('a', 'containerd://2.1.0'), node('b', 'containerd://1.7.27')]);
+    expect(check).toMatchObject({ status: 'warning', message: expect.stringContaining('b (containerd://1.7.27)') });
+    expect(check.message).not.toContain('a (');
+  });
+
+  it('cannot tell when the dry run is refused', () => {
+    const check = imageVolumeCheck({ status: 'rejected', reason: apiError(403, 'pods is forbidden') }, []);
+    expect(check).toMatchObject({ status: 'warning', message: expect.stringContaining('could not check') });
   });
 });

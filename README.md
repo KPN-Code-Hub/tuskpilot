@@ -1,10 +1,10 @@
-# Tuskpilot Autonomous Postgres
+# Tuskpilot AI optimized Postgres
 
 <p align="center">
   <img src="portal/logos/tuskpilot-icon.svg" alt="Tuskpilot logo" width="160">
 </p>
 
-A complete PostgreSQL Platform as a Service on Kubernetes, built on
+A generative AI optimized PostgreSQL Platform as a Service on Kubernetes, built on
 [CloudNativePG](https://cloudnative-pg.io/) (CNPG), [Crossplane](https://www.crossplane.io/) and
 [Backstage](https://backstage.io/). Teams order production-ready PostgreSQL
 clusters themselves, through a Kubernetes API or a developer portal. The platform runs and operates

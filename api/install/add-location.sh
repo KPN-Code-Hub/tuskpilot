@@ -61,6 +61,33 @@ echo "==> ${NAME}: $("${LOCATION[@]}" config view -o jsonpath='{.clusters[0].clu
 if ! "${LOCATION[@]}" api-resources --api-group=postgresql.cnpg.io -o name | grep -q '^clusters\.'; then
   echo "WARNING: CloudNativePG is not installed in ${NAME}; run operator/install.sh against it before placing databases there" >&2
 fi
+# Image volumes (CNPG extension images, PostgreSQL 18+): the API server keeps
+# an image volume (ImageVolume feature gate) and every node runs containerd
+# >= 2.1 or CRI-O >= 1.31. The portal's location health runs the same check.
+if ! "${LOCATION[@]}" -n default create --dry-run=server -o jsonpath='{.spec.volumes[0].image.reference}' -f - >/dev/null 2>&1 <<'YAML'
+apiVersion: v1
+kind: Pod
+metadata: {generateName: tuskpilot-preflight-}
+spec:
+  securityContext: {runAsNonRoot: true, runAsUser: 65534, seccompProfile: {type: RuntimeDefault}}
+  containers:
+    - name: probe
+      image: busybox
+      securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+      volumeMounts: [{name: ext, mountPath: /ext}]
+  volumes:
+    - name: ext
+      image: {reference: busybox, pullPolicy: IfNotPresent}
+YAML
+then
+  echo "WARNING: ${NAME}'s API server does not accept image volumes (ImageVolume feature gate); extension images (PostgreSQL 18+) can't be used there" >&2
+fi
+OLD_RUNTIMES="$("${LOCATION[@]}" get nodes -o jsonpath='{range .items[*]}{.metadata.name}={.status.nodeInfo.containerRuntimeVersion}{"\n"}{end}' \
+  | awk -F= '{split($2, r, "://"); split(r[2], v, ".")}
+      (r[1]=="containerd" && (v[1]<2 || (v[1]==2 && v[2]<1))) || (r[1]=="cri-o" && (v[1]<1 || (v[1]==1 && v[2]<31))) {print $1}')"
+if [[ -n "${OLD_RUNTIMES}" ]]; then
+  echo "WARNING: container runtime too old for image volumes (containerd >= 2.1, CRI-O >= 1.31) on: ${OLD_RUNTIMES//$'\n'/, }" >&2
+fi
 
 echo "==> control plane: Secret ${LOCATIONS_NAMESPACE}/${NAME} + Location ${NAME}"
 kubectl create namespace "${LOCATIONS_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -

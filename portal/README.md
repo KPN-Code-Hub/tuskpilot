@@ -128,7 +128,10 @@ kubectl -n kube-system create token data-services-platform --duration=8760h     
 
 Health checks, run from the portal backend (so a location must be reachable from where the portal runs):
 the API server answers `/version` (else **Unreachable**), `/readyz`, Ready nodes (none Ready means
-**Degraded**), and whether CloudNativePG is installed (a warning, not an error). Removing a location
+**Degraded**), whether CloudNativePG is installed, and whether it can mount extension images (**Image
+volumes**: the API server keeps an image volume in a server-side dry-run Pod in `default`, and every
+node runs containerd >= 2.1 or CRI-O >= 1.31; needed for CNPG extension images, PostgreSQL 18+). The
+last two are warnings, not errors; `api/install/add-location.sh` runs the same checks. Removing a location
 deletes the Location and then its Secret; nothing on that cluster changes. It's refused while a project
 still uses the location, since Crossplane couldn't update or clean up what runs there without it. The
 backend checks this first for a clear message, and the API server enforces it anyway: each Project holds

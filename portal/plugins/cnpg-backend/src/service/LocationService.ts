@@ -12,6 +12,8 @@ import {
   CustomObjectsApi,
   Health,
   KubeConfig,
+  V1Node,
+  V1Pod,
   V1Secret,
   VersionApi,
 } from '@kubernetes/client-node';
@@ -77,8 +79,100 @@ function describe(e: unknown): string {
 }
 
 /**
+ * A Pod with an image volume, created with dryRun=All: an API server whose
+ * ImageVolume feature gate is off drops the volume source and rejects it
+ * (422). CNPG mounts extension images (PostgreSQL 18+) this way.
+ */
+const IMAGE_VOLUME_POD: V1Pod = {
+  apiVersion: 'v1',
+  kind: 'Pod',
+  metadata: { generateName: 'tuskpilot-preflight-' },
+  spec: {
+    // Pod Security "restricted" compliant, so an enforcing namespace doesn't refuse it.
+    securityContext: { runAsNonRoot: true, runAsUser: 65534, seccompProfile: { type: 'RuntimeDefault' } },
+    containers: [
+      {
+        name: 'probe',
+        image: 'busybox',
+        securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ['ALL'] } },
+        volumeMounts: [{ name: 'ext', mountPath: '/ext' }],
+      },
+    ],
+    volumes: [{ name: 'ext', image: { reference: 'busybox', pullPolicy: 'IfNotPresent' } }],
+  },
+};
+
+/** Minimum container runtime versions that mount image volumes. */
+const IMAGE_VOLUME_RUNTIMES: Record<string, number[]> = {
+  containerd: [2, 1, 0],
+  'cri-o': [1, 31, 0],
+};
+
+function versionAtLeast(version: string, min: number[]): boolean {
+  const parts = version.replace(/^v/, '').split(/[.+-]/).map(n => parseInt(n, 10));
+  for (let i = 0; i < min.length; i++) {
+    const p = Number.isNaN(parts[i]) || parts[i] === undefined ? 0 : parts[i];
+    if (p !== min[i]) return p > min[i];
+  }
+  return true;
+}
+
+/**
+ * Whether the location can mount extension images (CNPG image volume
+ * extensions): the API server accepts an image volume (dry run), and every
+ * node runs a container runtime that supports them. A warning, not an error:
+ * only clusters with extension images need it.
+ */
+export function imageVolumeCheck(api: PromiseSettledResult<V1Pod>, nodes: V1Node[] | undefined): LocationCheck {
+  const name = 'Image volumes';
+  if (api.status === 'rejected') {
+    const e = api.reason;
+    if (e instanceof ApiException && e.code === 422) {
+      return {
+        name,
+        status: 'warning',
+        message: 'ImageVolume feature gate is off on the API server; extension images (PostgreSQL 18+) cannot be mounted',
+      };
+    }
+    return { name, status: 'warning', message: `could not check: ${describe(e)}` };
+  }
+  if (!api.value.spec?.volumes?.some(v => v.image)) {
+    return {
+      name,
+      status: 'warning',
+      message: 'the API server dropped the image volume (ImageVolume feature gate off); extension images cannot be mounted',
+    };
+  }
+  if (!nodes) {
+    return { name, status: 'warning', message: 'API server supports image volumes; node runtimes not checked' };
+  }
+  const unsupported: string[] = [];
+  const unknown: string[] = [];
+  for (const node of nodes) {
+    const runtime = node.status?.nodeInfo?.containerRuntimeVersion ?? '';
+    const [kind, version = ''] = runtime.split('://');
+    const min = IMAGE_VOLUME_RUNTIMES[kind];
+    if (!min) unknown.push(`${node.metadata?.name} (${runtime || 'unknown runtime'})`);
+    else if (!versionAtLeast(version, min)) unsupported.push(`${node.metadata?.name} (${runtime})`);
+  }
+  if (unsupported.length) {
+    return {
+      name,
+      status: 'warning',
+      message: `container runtime too old for image volumes (containerd >= 2.1, CRI-O >= 1.31): ${unsupported.join(', ')}`,
+    };
+  }
+  if (unknown.length) {
+    return { name, status: 'warning', message: `API server supports image volumes; runtime not recognised on ${unknown.join(', ')}` };
+  }
+  const runtimes = [...new Set(nodes.map(n => n.status?.nodeInfo?.containerRuntimeVersion))].join(', ');
+  return { name, status: 'ok', message: `supported: API server accepts image volumes, nodes run ${runtimes}` };
+}
+
+/**
  * Probes a location's API server: reachable and authenticated (/version),
- * ready (/readyz), nodes Ready, and whether CloudNativePG is installed.
+ * ready (/readyz), nodes Ready, whether CloudNativePG is installed and
+ * whether it can mount extension images (image volumes).
  * Unreachable when /version fails; degraded when any check is an error.
  */
 export async function probe(kubeconfig: string): Promise<LocationHealth> {
@@ -105,10 +199,12 @@ export async function probe(kubeconfig: string): Promise<LocationHealth> {
     message: `Kubernetes ${version.gitVersion} answered in ${latencyMs} ms`,
   });
 
-  const [ready, nodes, groups] = await Promise.allSettled([
+  const core = kc.makeApiClient(CoreV1Api);
+  const [ready, nodes, groups, imageVolume] = await Promise.allSettled([
     new Health(kc).readyz({ signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) } as any),
-    withTimeout(kc.makeApiClient(CoreV1Api).listNode()),
+    withTimeout(core.listNode()),
     withTimeout(kc.makeApiClient(ApisApi).getAPIVersions()),
+    withTimeout(core.createNamespacedPod({ namespace: 'default', body: IMAGE_VOLUME_POD, dryRun: 'All' })),
   ]);
 
   if (ready.status === 'fulfilled') {
@@ -150,6 +246,8 @@ export async function probe(kubeconfig: string): Promise<LocationHealth> {
   } else {
     checks.push({ name: 'CloudNativePG', status: 'warning', message: describe(groups.reason) });
   }
+
+  checks.push(imageVolumeCheck(imageVolume, nodes.status === 'fulfilled' ? nodes.value.items : undefined));
 
   return {
     status: checks.some(c => c.status === 'error') ? 'degraded' : 'healthy',
