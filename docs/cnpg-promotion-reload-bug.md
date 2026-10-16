@@ -1,6 +1,6 @@
 # CNPG promotion leaves the new primary on its old config (workaround)
 
-Status: workaround in the composition, upstream fix pending
+Status: workaround in the composition function (`function-tuskpilot`), upstream fix pending
 Affects: CloudNativePG 1.30.1 (also present on upstream `main` as of 2026-10-13),
 distributed PostgresClusters (replica clusters switched with a promotion token)
 
@@ -34,8 +34,9 @@ never becomes healthy until someone restarts instances by hand:
 Instance manager, `internal/management/controller/instance_controller.go`
 (`InstanceReconciler.Reconcile`):
 
-1. The composition sets `replica.primary = self` + `promotionToken` on the
-   designated primary's site. The instance manager writes the new
+1. The composition function sets `replica.primary = self` + `promotionToken` on the
+   designated primary's site (`place()` in
+   `api/function/postgrescluster/topology.go`). The instance manager writes the new
    `postgresql.conf` (replica cluster → primary cluster, e.g.
    `archive_mode: always → on`). `refreshConfigurationFiles` returns
    `reloadNeeded = true` -- a **local variable** of this pass.
@@ -60,9 +61,21 @@ annotation to trigger a reconcile; it does not call `pg_reload_conf()`.
 
 ## Workaround (this repo)
 
-`api/function/postgrescluster/member.go`, CNPG Cluster section of
-`composition.member`: for distributed topologies, once the member's observed
-Cluster has `status.lastPromotionToken`, add a placeholder GUC
+The composition function (Go, `api/function/postgrescluster/`) owns all
+promotion/demotion logic that used to live in the Go template of
+`api/apis/postgrescluster/composition.yaml`:
+
+| What | Where |
+|---|---|
+| target / previous primary site (`primarySite`, `status.primaryLocation`) | `compose.go` (`compose`) |
+| switchover/failover handshake, demotion-token check, member roles and `replica` settings | `topology.go` (`place`) |
+| draining (geoReplication off while the primary is in the recovery site) | `compose.go` (`compose`) |
+| `status.primaryLocation` / `primarySite` / `promotionToken`, waiting messages | `status.go` |
+| this workaround | `member.go` (`composition.member`) |
+
+`member.go`, CNPG Cluster section of `composition.member`: for distributed
+topologies, once the member's observed Cluster has `status.lastPromotionToken`,
+add a placeholder GUC
 
 ```yaml
 postgresql:
@@ -86,9 +99,16 @@ replicas and switches the primary over (`primaryUpdateMethod: switchover`) by it
   replicas, then one automatic switchover of the new primary (short write
   interruption) to apply `archive_mode`.
 
-Tests: `tests/render/postgrescluster/observed/switchover.yaml` gives the recovery
-member a `lastPromotionToken` from an earlier promotion; `tests/render/rendertest` checks the
-parameter value and that only that member carries it (`make test`).
+Tests:
+
+- unit (`make unit`): `TestPromotionReloadMarker` in
+  `api/function/postgrescluster/compose_test.go` checks the parameter value on a
+  promoted member and its absence on a never-promoted one; `TestPlace` in
+  `topology_test.go` covers the switchover/failover handshake itself.
+- render (`make test`): `tests/render/postgrescluster/observed/switchover.yaml`
+  gives the recovery member a `lastPromotionToken` from an earlier promotion;
+  `tests/render/rendertest` checks the parameter value and that only that member
+  carries it.
 
 ## Manual recovery (clusters without the workaround)
 
@@ -112,7 +132,8 @@ Any of:
   `current_setting('cnpg.config_sha256')` instead of a per-pass flag, or
 - persist "reload pending" across passes.
 
-Remove the workaround (template block + test fixture/assertion) once the
+Remove the workaround (the `tuskpilot.last_promotion` block in `member.go`,
+`TestPromotionReloadMarker`, and the render fixture/assertion) once the
 operator version deployed contains the fix.
 
 ## Related, separate observation
