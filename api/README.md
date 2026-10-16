@@ -507,9 +507,92 @@ kubectl apply -f examples/minimal.yaml
 kubectl get project,postgrescluster -A
 ```
 
-`install/function-tuskpilot.yaml` installs the published function package
-(`ghcr.io/bartvanbenthem/function-tuskpilot`); `FUNCTION_MANIFEST=<file> install/install.sh`
-installs another one.
+`install/install.sh` installs the published function package from
+[`install/function-tuskpilot.yaml`](install/function-tuskpilot.yaml) and waits until it's Healthy;
+`FUNCTION_MANIFEST=<file> install/install.sh` installs another one. See below for publishing it.
+
+## function-tuskpilot
+
+The PostgresCluster composition runs in a composition function of its own, built from
+[`function/`](function/) and published as a Crossplane package to
+`ghcr.io/bartvanbenthem/function-tuskpilot`. The Composition only names it
+(`functionRef: function-tuskpilot`), so a new version of the function changes how every
+PostgresCluster is composed without touching the Composition.
+
+### Publish a version
+
+Needs Go, the crossplane CLI and Docker or podman. Log in to ghcr.io with a **classic** personal
+access token with the `write:packages` scope (a fine-grained token or one without that scope gets
+`DENIED`). Read the token without echoing it, so it's never typed into a hidden password prompt:
+
+```sh
+read -rs GHCR_TOKEN
+echo "$GHCR_TOKEN" | podman login --authfile ~/.docker/config.json ghcr.io -u <github user> --password-stdin
+unset GHCR_TOKEN
+
+make test                                     # unit + render tests against this checkout
+make function-push FUNCTION_VERSION=v0.1.1    # image -> _output/*.xpkg -> ghcr.io
+```
+
+`--authfile ~/.docker/config.json` matters with podman: `crossplane xpkg push` reads its
+credentials from there. `function-push` builds the image (`function/Dockerfile`), saves it and
+embeds it as the package's runtime (`function/package/crossplane.yaml` is the package metadata).
+
+ghcr.io makes a new package **private**, and Crossplane pulls without credentials: the Function then
+stays `Installed=False` with `UNAUTHORIZED: authentication required`, and `install.sh` waits until it
+times out. Either make the package public (GitHub: Packages, `function-tuskpilot`, Package settings,
+Change visibility), or keep it private and give Crossplane a pull secret (a token with
+`read:packages`) on every control plane:
+
+```sh
+kubectl -n crossplane-system create secret docker-registry ghcr-pull \
+  --docker-server=ghcr.io --docker-username=<github user> --docker-password=<token>
+kubectl apply -f - <<'EOF'
+apiVersion: pkg.crossplane.io/v1beta1
+kind: ImageConfig
+metadata:
+  name: ghcr-tuskpilot
+spec:
+  matchImages:
+    - {type: Prefix, prefix: ghcr.io/bartvanbenthem/}
+  registry:
+    authentication:
+      pullSecretRef: {name: ghcr-pull}
+EOF
+```
+
+### Roll out a version
+
+Set the new tag in [`install/function-tuskpilot.yaml`](install/function-tuskpilot.yaml) and in the
+`FUNCTION_VERSION` default of the [`Makefile`](Makefile), commit, then on every control plane:
+
+```sh
+kubectl apply -f install/function-tuskpilot.yaml      # or re-run install/install.sh
+kubectl get function function-tuskpilot -w            # INSTALLED/HEALTHY True on the new package
+kubectl get functionrevision | grep function-tuskpilot   # the new revision is Active
+kubectl get postgrescluster -A                        # SYNCED/READY stay True
+```
+
+Crossplane installs the new FunctionRevision, switches traffic to it and every PostgresCluster is
+composed by it on its next reconcile. What it sends to the locations changes only where the new
+version composes differently; a change to a CNPG Cluster's spec (resources, parameters, ...) makes
+CNPG restart its instances one by one, the primary last. `make test` shows such changes before
+you publish (the render tests fail on any unexpected one).
+
+To roll back, apply the previous tag the same way: the old version's package is still in the
+registry.
+
+### Develop and test it
+
+```sh
+make unit                         # go test ./function/...
+make test                         # + every case rendered through the function built from this checkout
+../hack/e2e-kind.sh               # kind: the function from this checkout, no registry needed
+```
+
+The render tests and the e2e scripts never use the published package: they build the image from
+the checkout (the e2e scripts load it into kind and seed Crossplane's package cache, see
+[`../hack/lib/function-tuskpilot.sh`](../hack/lib/function-tuskpilot.sh)).
 
 ## Connect from outside the cluster
 
@@ -550,8 +633,7 @@ make test       # make unit, then crossplane render for every API, PostgresClust
                 # the CNPG/Barman/Prometheus/Grafana/provider-kubernetes/ClusterUsage CRDs
                 # (manifests inside Objects too), assertions
 go run ./hack/observe project full   # regenerate an observed-state fixture after changing a composition
-make function-push FUNCTION_VERSION=v0.1.1   # build and push the function package,
-                                             # then bump install/function-tuskpilot.yaml
+make function-push FUNCTION_VERSION=v0.1.1   # publish the function: see "function-tuskpilot" above
 # crossplane render doesn't resolve namespaced extra resources (Crossplane itself does), so the
 # render tests can't show COSI's credentials Secrets being unpacked; they check the rest.
 ../hack/e2e-kind.sh        # the real thing: a control plane and one location on kind
