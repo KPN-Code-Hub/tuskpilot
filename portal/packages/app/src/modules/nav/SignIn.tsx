@@ -11,16 +11,7 @@ export const TuskpilotSignInPage = SignInPageBlueprint.make({
           {...props}
           providers={['guest']}
           align="center"
-          titleComponent={
-            <span
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 16 }}
-            >
-              <TuskpilotLogo height={34} />
-              <span style={{ fontSize: 22, fontWeight: 500, color: '#e9ebf0' }}>
-                AI optimized Postgres
-              </span>
-            </span>
-          }
+          titleComponent={<TuskpilotLogo height={34} />}
         />
       );
     },

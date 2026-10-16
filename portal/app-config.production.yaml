@@ -60,6 +60,14 @@ catalog:
 
     # Local example organizational data
     - type: file
+      target: ./catalog/catalog-info.yaml
+      rules:
+        - allow: [System]
+    - type: file
+      target: ./catalog/apis.yaml
+      rules:
+        - allow: [API]
+    - type: file
       target: ./examples/org.yaml
       rules:
         - allow: [User, Group]
@@ -70,3 +78,13 @@ cnpg:
   grafanaUrl: ${CNPG_GRAFANA_URL}
   catalog:
     defaultOwner: group:default/guests
+
+# The docs are built in the backend container (MkDocs is in the image, see
+# packages/backend/Dockerfile): there is no Docker daemon to run them in.
+# app-config.yaml does the same; this keeps production explicit.
+techdocs:
+  builder: 'local'
+  generator:
+    runIn: 'local'
+  publisher:
+    type: 'local'

@@ -54,11 +54,39 @@ form as-is.
 
 ```sh
 yarn install
-CNPG_KUBE_CONTEXT=$(kubectl config current-context) yarn start   # http://localhost:3000 → Enter as guest
+# MkDocs for the platform docs (TechDocs), once; .techdocs-venv is git-ignored
+python3 -m venv .techdocs-venv && .techdocs-venv/bin/pip install mkdocs-techdocs-core==1.6.1
+
+PATH=$PWD/.techdocs-venv/bin:$PATH CNPG_KUBE_CONTEXT=$(kubectl config current-context) yarn start
+# http://localhost:3000 → Enter as guest
 ```
+
+Without MkDocs on the `PATH` everything works but **Docs → Platform docs**, which then can't be built.
+If `python3 -m venv` complains about a missing `ensurepip` (Debian/Ubuntu without `python3-venv`), use
+`python3 -m venv --without-pip .techdocs-venv` and install pip into it with
+[`get-pip.py`](https://bootstrap.pypa.io/get-pip.py).
 
 Without `CNPG_KUBE_CONTEXT` the backend uses your **current** kubeconfig context. Other settings are
 under `cnpg:` in `app-config.yaml` (schema: `plugins/cnpg-backend/config.d.ts`).
+
+### Platform docs and API reference
+
+**Docs → Platform docs** is TechDocs for the `tuskpilot` System
+([`catalog/catalog-info.yaml`](catalog/catalog-info.yaml)): the MkDocs site in
+[`catalog/`](catalog/mkdocs.yml), pages under `catalog/docs/`. **Docs → API reference** is the API
+docs plugin over the `PostgresCluster`, `Project` and `Location` APIs in
+[`catalog/apis.yaml`](catalog/apis.yaml). That file and the OpenAPI documents in `catalog/apis/`
+are generated from the XRDs: run `make generate` in `api/` after changing one; `make test` fails
+while they're stale.
+
+The backend builds the docs itself with MkDocs from the `PATH` (`techdocs.generator.runIn: local`),
+locally from `.techdocs-venv` and in the image from `/opt/techdocs` (see `packages/backend/Dockerfile`).
+Not in a container (`runIn: docker`): Backstage runs that container as your uid, which with rootless
+podman can't read its own bind mounts. Check the pages before you push them:
+
+```sh
+cd catalog && ../.techdocs-venv/bin/mkdocs build --strict -d /tmp/site
+```
 
 ### Grafana dashboards
 

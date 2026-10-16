@@ -2,11 +2,16 @@ app:
   title: Tuskpilot Managed PostgreSQL
   baseUrl: http://localhost:3000
 
-  # CNPG-only portal: load just the catalog (for the PostgresCluster entities)
-  # and the cnpg plugin instead of every plugin in packages/app/package.json.
+  # CNPG-only portal: load just the catalog (for the PostgresCluster entities),
+  # the cnpg plugin, and the platform's documentation (TechDocs) and API
+  # reference (API docs) instead of every plugin in packages/app/package.json.
+  # Search provides the search API the TechDocs reader's search bar needs.
   packages:
     include:
       - '@backstage/plugin-catalog'
+      - '@backstage/plugin-techdocs'
+      - '@backstage/plugin-api-docs'
+      - '@backstage/plugin-search'
       - '@internal/backstage-plugin-cnpg'
 
   extensions:
@@ -78,7 +83,10 @@ proxy:
 techdocs:
   builder: 'local' # Alternatives - 'external'
   generator:
-    runIn: 'docker' # Alternatives - 'local'
+    # MkDocs from PATH, as in the image (see README: .techdocs-venv). 'docker'
+    # doesn't work with rootless podman: Backstage runs the container as the
+    # host uid, which can't read its own bind mounts there.
+    runIn: 'local'
   publisher:
     type: 'local' # Alternatives - 'googleGcs' or 'awsS3'. Read documentation for using alternatives.
 
@@ -125,6 +133,16 @@ catalog:
       target: ../../templates/project/template.yaml
       rules:
         - allow: [Template]
+
+    # The platform itself: its docs (TechDocs) and API reference (API docs)
+    - type: file
+      target: ../../catalog/catalog-info.yaml
+      rules:
+        - allow: [System]
+    - type: file
+      target: ../../catalog/apis.yaml
+      rules:
+        - allow: [API]
 
     # Local example organizational data
     - type: file

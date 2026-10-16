@@ -1,0 +1,18 @@
+# The platform itself in the catalog: the System its documentation hangs off
+# (TechDocs, mkdocs.yml next to this file). Its APIs are in apis.yaml, which
+# api/hack/generate writes from the XRDs (`make generate` in api/; `make test`
+# fails while it's stale).
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: tuskpilot
+  title: Tuskpilot
+  description: AI optimized PostgreSQL as a service on Kubernetes (CloudNativePG, Crossplane, Backstage)
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: https://github.com/bartvanbenthem/tuskpilot
+      title: Source
+      icon: github
+spec:
+  owner: guests

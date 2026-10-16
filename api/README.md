@@ -516,7 +516,7 @@ apis/project/definition.yaml               Project XRD (cluster-scoped)
 apis/project/composition.yaml              Project composition (hand-written, nothing embedded)
 apis/project/policies.yaml                 deletion protection, PostgresClusters only in a Project's
                                            sites, unschedulable locations
-hack/generate/                             prepares src/ as the function's assets
+hack/generate/                             prepares src/ as the function's assets, and the APIs' OpenAPI documents for the portal (../portal/catalog)
 hack/xpkgcache/                            seeds Crossplane's package cache (e2e on kind, no registry)
 hack/observe/                              generates tests/render observed-state fixtures
 hack/alertrules/                           writes src/alerts/ for hack/refresh-alerts.sh
@@ -654,7 +654,7 @@ site, connect to that location instead.
 ## Develop
 
 ```sh
-make generate   # after editing src/ (dashboard, alerts)
+make generate   # after editing src/ (dashboard, alerts) or an XRD (the portal's API reference)
 make unit       # go test ./function/...: the switchover state machine, the refusals, parameter precedence
 make test       # make unit, then crossplane render for every API, PostgresCluster through the
                 # function built from this checkout (PostgresCluster: 23 cases incl. sizes (from the

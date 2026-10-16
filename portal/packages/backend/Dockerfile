@@ -22,8 +22,13 @@ FROM node:24-trixie-slim
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
-    apt-get install -y --no-install-recommends libsqlite3-dev && \
+    apt-get install -y --no-install-recommends libsqlite3-dev python3 python3-venv && \
     rm -rf /var/lib/apt/lists/*
+
+# MkDocs for TechDocs (techdocs.generator.runIn: local in app-config.production.yaml).
+RUN python3 -m venv /opt/techdocs && \
+    /opt/techdocs/bin/pip install --no-cache-dir mkdocs-techdocs-core==1.6.1
+ENV PATH="/opt/techdocs/bin:${PATH}"
 
 # From here on we use the least-privileged `node` user to run the backend.
 USER node
@@ -54,6 +59,8 @@ RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked,uid=1000,gid
 COPY --chown=node:node examples ./examples
 # The Software Templates referenced from app-config.production.yaml
 COPY --chown=node:node templates ./templates
+# The platform's catalog entities, docs (TechDocs) and API documents
+COPY --chown=node:node catalog ./catalog
 
 # Then copy the rest of the backend bundle, along with any other files we might want.
 COPY --chown=node:node packages/backend/dist/bundle.tar.gz app-config*.yaml ./

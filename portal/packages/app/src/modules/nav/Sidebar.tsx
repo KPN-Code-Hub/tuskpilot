@@ -89,6 +89,24 @@ const sections: Array<{ title: string; items: Item[] }> = [
       },
     ],
   },
+  {
+    title: 'Docs',
+    items: [
+      {
+        // TechDocs of the tuskpilot System (portal/catalog/mkdocs.yml).
+        label: 'Platform docs',
+        to: '/docs/default/system/tuskpilot',
+        isActive: p => p.startsWith('/docs'),
+      },
+      {
+        // The APIs' OpenAPI documents, generated from the XRDs.
+        label: 'API reference',
+        to: '/api-docs',
+        isActive: p =>
+          p.startsWith('/api-docs') || p.startsWith('/catalog/default/api/'),
+      },
+    ],
+  },
 ];
 
 const TuskpilotNav = () => {

@@ -4,6 +4,8 @@
 //	src/dashboards/cnpg-cluster.json    -> zz_generated.dashboard.json
 //	src/alerts/cnpg-cluster-rules.yaml  -> zz_generated.alert-rules.yaml
 //
+// and the OpenAPI documents of the APIs for the portal (see openapi.go).
+//
 // src/alerts/local-rules.yaml holds our changes to the upstream alerts (a rule
 // there replaces the upstream rule of the same name), so that
 // hack/refresh-alerts.sh can overwrite cnpg-cluster-rules.yaml freely.
@@ -73,6 +75,11 @@ func run(check bool) error {
 		{filepath.Join(assets, "zz_generated.dashboard.json"), dash + "\n"},
 		{filepath.Join(assets, "zz_generated.alert-rules.yaml"), header + rules + "\n"},
 	}
+	docs, err := openAPIDocs(base)
+	if err != nil {
+		return err
+	}
+	outputs = append(outputs, docs...)
 	for _, o := range outputs {
 		rel, _ := filepath.Rel(base, o.path)
 		if check {

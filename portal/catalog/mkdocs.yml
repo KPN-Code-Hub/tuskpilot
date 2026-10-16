@@ -1,0 +1,27 @@
+site_name: Tuskpilot
+site_description: AI optimized PostgreSQL as a service on Kubernetes
+repo_url: https://github.com/bartvanbenthem/tuskpilot
+edit_uri: edit/main/portal/catalog/docs/
+nav:
+  - Overview: index.md
+  - Getting started: getting-started.md
+  - PostgreSQL clusters:
+      - Configure a cluster: clusters/configure.md
+      - Vector & RAG: clusters/vector-rag.md
+      - Geo replication and disaster recovery: clusters/disaster-recovery.md
+      - Backups and restore: clusters/backup-restore.md
+  - API reference: api.md
+  - Platform:
+      - Architecture: platform/architecture.md
+      - Install: platform/install.md
+      - Projects: platform/projects.md
+      - Locations: platform/locations.md
+      - Catalogs: platform/catalogs.md
+      - Upgrades: platform/upgrades.md
+      - Monitoring: platform/monitoring.md
+      - Identity and SSO (design): platform/identity-and-sso.md
+  - Operations:
+      - Troubleshooting: platform/troubleshooting.md
+      - CNPG promotion reload workaround: operations/cnpg-promotion-reload-bug.md
+plugins:
+  - techdocs-core
