@@ -60,8 +60,8 @@ annotation to trigger a reconcile; it does not call `pg_reload_conf()`.
 
 ## Workaround (this repo)
 
-`apis/postgrescluster/composition.tmpl.yaml`, CNPG Cluster section of the
-`member` template: for distributed topologies, once the member's observed
+`api/function/postgrescluster/member.go`, CNPG Cluster section of
+`composition.member`: for distributed topologies, once the member's observed
 Cluster has `status.lastPromotionToken`, add a placeholder GUC
 
 ```yaml

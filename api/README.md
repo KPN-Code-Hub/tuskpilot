@@ -131,11 +131,15 @@ spec:
   provider-kubernetes `Object`s; only the `GrafanaDashboard` and the Project's own objects are
   composed directly. RBAC is a ClusterRole for exactly those kinds, aggregated into Crossplane's
   own ServiceAccount ([`install/rbac.yaml`](install/rbac.yaml)), instead of `*/*`.
-- Readiness is set explicitly per resource (`gotemplating.fn.crossplane.io/ready`), so
-  `function-auto-ready` isn't needed. The custom condition uses `ClaimConditions` instead of
-  hand-written `status.conditions`.
-- The dashboard JSON and alert rules are kept as readable sources in `src/` and embedded by a
-  generator. `composition.yaml` is generated, so don't edit it by hand.
+- The PostgresCluster composition is Go: a composition function of its own, function-tuskpilot
+  ([`function/`](function/)), with typed inputs, the switchover state machine as a pure function
+  ([`topology.go`](function/postgrescluster/topology.go)) and unit tests. It emits only the fields
+  it sets (not the upstream CNPG Go types, which would apply defaulted and empty fields to every
+  running cluster). The Project and Location compositions are still function-go-templating.
+- Readiness is set explicitly per resource, so `function-auto-ready` isn't needed. The custom
+  `PostgresReady` condition is a function condition, not hand-written `status.conditions`.
+- The dashboard JSON and alert rules are kept as readable sources in `src/`; `make generate`
+  prepares them for the function, which embeds them.
 
 ## The Project API
 
@@ -457,8 +461,12 @@ taken after the switchover: restore from before it out of the protected site's f
 
 ```
 apis/postgrescluster/definition.yaml       XRD (the API contract)
-apis/postgrescluster/composition.tmpl.yaml composition source -- edit this
-apis/postgrescluster/composition.yaml      GENERATED (make generate)
+apis/postgrescluster/composition.yaml      one pipeline step: function-tuskpilot
+function/                                  function-tuskpilot: the PostgresCluster composition in Go
+function/postgrescluster/                  what gets composed (compose.go), per location (member.go),
+                                           the primary/switchover state machine (topology.go), status
+function/postgrescluster/assets/           what it embeds: monitoring queries, GENERATED dashboard and alerts
+function/package/                          its Crossplane package metadata (make function-xpkg)
 apis/postgrescluster/sizes.yaml            the size catalog (EnvironmentConfig postgres-sizes), installed once
 apis/postgrescluster/extensions.yaml       the extension catalog (EnvironmentConfig postgres-extensions), installed once
 apis/postgrescluster/policies.yaml         spec.size and every extension must be in their catalogs
@@ -471,11 +479,12 @@ apis/project/definition.yaml               Project XRD (cluster-scoped)
 apis/project/composition.yaml              Project composition (hand-written, nothing embedded)
 apis/project/policies.yaml                 deletion protection, PostgresClusters only in a Project's
                                            sites, unschedulable locations
-hack/generate/                             embeds src/ into the composition (escapes {{ }})
+hack/generate/                             prepares src/ as the function's assets
+hack/xpkgcache/                            seeds Crossplane's package cache (e2e on kind, no registry)
 hack/observe/                              generates tests/render observed-state fixtures
 hack/alertrules/                           writes src/alerts/ for hack/refresh-alerts.sh
 internal/doc/                              shared YAML helpers for the Go tools
-install/                                   Crossplane, function-go-templating, provider-kubernetes, RBAC,
+install/                                   Crossplane, the functions, provider-kubernetes, RBAC,
                                            install/uninstall, add-location.sh, migrate-locations.sh
 examples/                                  PostgresClusters (incl. a geo-replicated and a restored one), a Project, the
                                            project-defaults EnvironmentConfig
@@ -498,8 +507,9 @@ kubectl apply -f examples/minimal.yaml
 kubectl get project,postgrescluster -A
 ```
 
-The Composition is applied with `--server-side`, because the embedded dashboard exceeds the
-client-side `last-applied-configuration` annotation limit.
+`install/function-tuskpilot.yaml` installs the published function package
+(`ghcr.io/bartvanbenthem/function-tuskpilot`); `FUNCTION_MANIFEST=<file> install/install.sh`
+installs another one.
 
 ## Connect from outside the cluster
 
@@ -524,8 +534,10 @@ site, connect to that location instead.
 ## Develop
 
 ```sh
-make generate   # after editing composition.tmpl.yaml or src/
-make test       # crossplane render for every API (PostgresCluster: 22 cases incl. sizes (from the
+make generate   # after editing src/ (dashboard, alerts)
+make unit       # go test ./function/...: the switchover state machine, the refusals, parameter precedence
+make test       # make unit, then crossplane render for every API, PostgresCluster through the
+                # function built from this checkout (PostgresCluster: 22 cases incl. sizes (from the
                 # catalog, retired, changed to or created with an unknown one), extensions (the
                 # bootstrap database's, their settings from the catalog), geo-replicated,
                 # switchover/failover/promoted, draining, pinned sites, no Project, the Project's
@@ -538,6 +550,8 @@ make test       # crossplane render for every API (PostgresCluster: 22 cases inc
                 # the CNPG/Barman/Prometheus/Grafana/provider-kubernetes/ClusterUsage CRDs
                 # (manifests inside Objects too), assertions
 go run ./hack/observe project full   # regenerate an observed-state fixture after changing a composition
+make function-push FUNCTION_VERSION=v0.1.1   # build and push the function package,
+                                             # then bump install/function-tuskpilot.yaml
 # crossplane render doesn't resolve namespaced extra resources (Crossplane itself does), so the
 # render tests can't show COSI's credentials Secrets being unpacked; they check the rest.
 ../hack/e2e-kind.sh        # the real thing: a control plane and one location on kind

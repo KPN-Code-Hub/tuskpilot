@@ -602,7 +602,7 @@ func assertDashboard(r *render, dash M, sourcePath string) {
 		current[str(v, "name")] = get(v, "current", "value")
 	}
 	check(equal(current["namespace"], ns) && equal(current["cluster"], name), "dashboard variables not preset")
-	// Grafana legend templates like {{pod}} must survive function-go-templating verbatim.
+	// Grafana legend templates like {{pod}} must survive the composition verbatim.
 	m, _ := json.Marshal(model)
 	s, _ := json.Marshal(source)
 	check(strings.Count(string(m), "{{") == strings.Count(string(s), "{{"), "dashboard {{ }} legend formats altered")

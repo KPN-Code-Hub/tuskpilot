@@ -1,0 +1,12 @@
+# Package metadata for function-tuskpilot (`make function-xpkg`).
+apiVersion: meta.pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-tuskpilot
+  annotations:
+    meta.crossplane.io/maintainer: Tuskpilot
+    meta.crossplane.io/source: github.com/bartvanbenthem/postgres-paas
+    meta.crossplane.io/description: Composes Tuskpilot's PostgresCluster API (CloudNativePG across locations)
+spec:
+  crossplane:
+    version: ">=v2.0.0"

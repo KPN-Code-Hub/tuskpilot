@@ -4,3 +4,7 @@
 env/
 
 .env
+
+# make -C api function-xpkg
+api/_output/
+

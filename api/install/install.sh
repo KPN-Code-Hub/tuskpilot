@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Installs Crossplane v2 core, function-go-templating, provider-kubernetes
+# Installs Crossplane v2 core, function-go-templating, function-tuskpilot (the
+# PostgresCluster composition, ../function), provider-kubernetes
 # (which places everything in the locations), the RBAC Crossplane needs, and
 # the Location, PostgresCluster and Project APIs (XRDs + Compositions +
 # admission policies) into the control plane cluster your current kubeconfig
@@ -11,6 +12,10 @@
 # Grafana: install the Prometheus Operator and grafana-operator first
 # (../../deps), or switch them off per Project. Every location needs
 # ../../operator/install.sh and the Prometheus Operator.
+#
+#   FUNCTION_MANIFEST=<file>        install function-tuskpilot from this
+#                                   manifest instead of function-tuskpilot.yaml
+#   CROSSPLANE_HELM_ARGS="--set ..." extra arguments for Crossplane's chart
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,6 +23,8 @@ API_DIR="${SCRIPT_DIR}/../apis"
 CROSSPLANE_NAMESPACE="${CROSSPLANE_NAMESPACE:-crossplane-system}"
 CROSSPLANE_VERSION="${CROSSPLANE_VERSION:-2.4.2}"
 SKIP_CROSSPLANE="${SKIP_CROSSPLANE:-false}"
+FUNCTION_MANIFEST="${FUNCTION_MANIFEST:-${SCRIPT_DIR}/function-tuskpilot.yaml}"
+read -r -a CROSSPLANE_HELM_ARGS <<<"${CROSSPLANE_HELM_ARGS:-}"
 
 if [[ "${SKIP_CROSSPLANE}" != "true" ]]; then
   echo "==> Crossplane ${CROSSPLANE_VERSION} (helm) in ${CROSSPLANE_NAMESPACE}"
@@ -26,6 +33,7 @@ if [[ "${SKIP_CROSSPLANE}" != "true" ]]; then
   helm upgrade --install crossplane crossplane-stable/crossplane \
     --version "${CROSSPLANE_VERSION}" \
     --namespace "${CROSSPLANE_NAMESPACE}" --create-namespace \
+    "${CROSSPLANE_HELM_ARGS[@]}" \
     --wait
 fi
 
@@ -35,6 +43,10 @@ kubectl apply -f "${SCRIPT_DIR}/rbac.yaml"
 echo "==> function-go-templating"
 kubectl apply -f "${SCRIPT_DIR}/functions.yaml"
 kubectl wait function.pkg.crossplane.io/function-go-templating --for=condition=Healthy --timeout=300s
+
+echo "==> function-tuskpilot"
+kubectl apply -f "${FUNCTION_MANIFEST}"
+kubectl wait function.pkg.crossplane.io/function-tuskpilot --for=condition=Healthy --timeout=300s
 
 echo "==> provider-kubernetes (locations)"
 kubectl apply -f "${SCRIPT_DIR}/provider-kubernetes.yaml"
@@ -50,8 +62,8 @@ kubectl apply -f "${API_DIR}/postgrescluster/definition.yaml"
 kubectl wait xrd/postgresclusters.cnpg.tuskpilot.com --for=condition=Established --timeout=120s
 
 echo "==> PostgresCluster Composition"
-# Server-side apply: the embedded Grafana dashboard (~250 KiB) would not fit
-# in kubectl's client-side last-applied-configuration annotation (256 KiB cap).
+# Server-side, like earlier installs that embedded the Grafana dashboard
+# (too big for client-side apply), so the field manager stays the same.
 kubectl apply --server-side --force-conflicts -f "${API_DIR}/postgrescluster/composition.yaml"
 
 echo "==> PostgresCluster sizes and extensions (catalogs, once) + admission policies"
