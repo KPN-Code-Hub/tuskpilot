@@ -2,7 +2,11 @@ import { NavContentBlueprint } from '@backstage/plugin-app-react';
 import { Link, useLocation } from 'react-router-dom';
 import { TuskpilotLogo } from './TuskpilotLogo';
 
-type Item = { label: string; to: string; isActive: (path: string) => boolean };
+type Item = {
+  label: string;
+  to: string;
+  isActive: (path: string, search: string) => boolean;
+};
 
 const CNPG = '/cnpg';
 const isClusterPath = (p: string) =>
@@ -16,6 +20,9 @@ const isClusterPath = (p: string) =>
     !p.startsWith(`${CNPG}/volumes`));
 const isProjectPath = (p: string) =>
   p.startsWith(`${CNPG}/projects`) && !p.startsWith(`${CNPG}/projects/create`);
+const isRagCreate = (p: string, search: string) =>
+  p.startsWith(`${CNPG}/create`) &&
+  new URLSearchParams(search).get('profile') === 'vector';
 const isLocationPath = (p: string) =>
   p.startsWith(`${CNPG}/locations`) &&
   !p.startsWith(`${CNPG}/locations/create`);
@@ -61,7 +68,14 @@ const sections: Array<{ title: string; items: Item[] }> = [
       {
         label: 'New cluster',
         to: `${CNPG}/create`,
-        isActive: p => p.startsWith(`${CNPG}/create`),
+        isActive: (p, search) =>
+          p.startsWith(`${CNPG}/create`) && !isRagCreate(p, search),
+      },
+      {
+        // The create form with the vector workload profile preset.
+        label: 'New RAG cluster',
+        to: `${CNPG}/create?profile=vector`,
+        isActive: isRagCreate,
       },
     ],
   },
@@ -78,12 +92,12 @@ const sections: Array<{ title: string; items: Item[] }> = [
 ];
 
 const TuskpilotNav = () => {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   return (
     <nav className="tp-nav" aria-label="sidebar nav">
       <Link to={CNPG} className="tp-nav__brand" aria-label="Home">
         <TuskpilotLogo height={26} />
-        <span className="tp-nav__product">Autonomous Postgres</span>
+        <span className="tp-nav__product">AI optimized Postgres</span>
       </Link>
       <div className="tp-nav__sections">
         {sections.map(section => (
@@ -94,7 +108,9 @@ const TuskpilotNav = () => {
                 key={item.to}
                 to={item.to}
                 className="tp-nav__item"
-                aria-current={item.isActive(pathname) ? 'page' : undefined}
+                aria-current={
+                  item.isActive(pathname, search) ? 'page' : undefined
+                }
               >
                 {item.label}
               </Link>
@@ -102,7 +118,7 @@ const TuskpilotNav = () => {
           </div>
         ))}
       </div>
-      <div className="tp-nav__footer">CloudNativePG · Crossplane</div>
+      <div className="tp-nav__footer">Powered by CloudNativePG</div>
     </nav>
   );
 };

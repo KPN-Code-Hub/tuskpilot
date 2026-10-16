@@ -92,10 +92,26 @@ type LabelSelector struct {
 }
 
 type PostgresConfig struct {
-	Parameters             map[string]string `json:"parameters,omitempty"`
-	PgHBA                  []string          `json:"pg_hba,omitempty"`
-	SharedPreloadLibraries []string          `json:"shared_preload_libraries,omitempty"`
-	Synchronous            *Synchronous      `json:"synchronous,omitempty"`
+	Parameters             map[string]string  `json:"parameters,omitempty"`
+	PgHBA                  []string           `json:"pg_hba,omitempty"`
+	SharedPreloadLibraries []string           `json:"shared_preload_libraries,omitempty"`
+	Synchronous            *Synchronous       `json:"synchronous,omitempty"`
+	Extensions             []ClusterExtension `json:"extensions,omitempty"`
+}
+
+// ClusterExtension is an extension mounted from an image (CNPG image volume
+// extensions, PostgreSQL 18+).
+type ClusterExtension struct {
+	Name                 string         `json:"name"`
+	Image                ExtensionImage `json:"image"`
+	ExtensionControlPath []string       `json:"extension_control_path,omitempty"`
+	DynamicLibraryPath   []string       `json:"dynamic_library_path,omitempty"`
+	LDLibraryPath        []string       `json:"ld_library_path,omitempty"`
+}
+
+type ExtensionImage struct {
+	Reference  string `json:"reference"`
+	PullPolicy string `json:"pullPolicy,omitempty"`
 }
 
 type Synchronous struct {

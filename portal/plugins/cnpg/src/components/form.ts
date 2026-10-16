@@ -4,7 +4,16 @@
  * defaults, and the API server validates the result against the XRD.
  */
 
-import type { ClusterSize, PostgresCluster, Site } from '@internal/backstage-plugin-cnpg-common';
+import {
+  ClusterExtension,
+  ClusterProfile,
+  clusterProfile,
+  ClusterSize,
+  extensionAvailable,
+  PostgresCluster,
+  PROFILES,
+  Site,
+} from '@internal/backstage-plugin-cnpg-common';
 
 export interface ClusterForm {
   name: string;
@@ -17,6 +26,8 @@ export interface ClusterForm {
   /** Where the primary runs; changing it on an existing cluster switches over. */
   primarySite: Site;
   promotion: 'Switchover' | 'Failover';
+  /** Workload profile (spec.profile): general, or vector for embeddings and hybrid search. */
+  profile: ClusterProfile;
   postgresVersion: number;
   instances: number;
   /** A size from the catalog; '' for custom cpu/memory. */
@@ -64,6 +75,7 @@ export const defaultForm = (namespace = ''): ClusterForm => ({
   geoInstances: 0,
   primarySite: 'protected',
   promotion: 'Switchover',
+  profile: 'general',
   postgresVersion: 17,
   instances: 3,
   size: '',
@@ -108,6 +120,10 @@ const AUDIT_LOG = new RegExp(`^\\s*${AUDIT_CLASS}(\\s*,\\s*${AUDIT_CLASS})*\\s*$
 /** Field-level errors shown inline; the API server remains the final validator. */
 export function validate(f: ClusterForm): Partial<Record<keyof ClusterForm, string>> {
   const e: Partial<Record<keyof ClusterForm, string>> = {};
+  const minVersion = PROFILES[f.profile].minPostgresVersion;
+  if (minVersion && f.postgresVersion < minVersion) {
+    e.postgresVersion = `The ${PROFILES[f.profile].displayName} profile needs PostgreSQL ${minVersion} or later.`;
+  }
   if (!NAME.test(f.name)) e.name = 'Lowercase letters, digits and "-", starting with a letter, max 40 characters.';
   if (!f.namespace) e.namespace = 'Pick a project.';
   if (f.owner && !/^[A-Za-z0-9][-A-Za-z0-9_.]{0,62}$/.test(f.owner)) e.owner = 'A group name, e.g. team-payments.';
@@ -147,6 +163,8 @@ export function validate(f: ClusterForm): Partial<Record<keyof ClusterForm, stri
  */
 export function toSpec(f: ClusterForm, { explicit = false } = {}): Record<string, unknown> {
   const spec: Record<string, any> = {
+    // general is the XRD default: only sent when it changes something.
+    ...(f.profile !== 'general' || explicit ? { profile: f.profile } : {}),
     postgresVersion: f.postgresVersion,
     instances: f.instances,
     storage: { size: f.storageSize, ...(f.storageClass ? { storageClass: f.storageClass } : {}) },
@@ -266,6 +284,7 @@ export function fromCluster(cluster: PostgresCluster): ClusterForm {
     geoInstances: geo.instances ?? 0,
     primarySite: geo.primarySite ?? d.primarySite,
     promotion: geo.promotion ?? d.promotion,
+    profile: clusterProfile(spec),
     postgresVersion: spec.postgresVersion ?? d.postgresVersion,
     instances: spec.instances ?? d.instances,
     size: spec.size ?? '',
@@ -337,6 +356,45 @@ export function selectSize(
     if (size.storage.walSize) next.walSize = size.storage.walSize;
   }
   return next;
+}
+
+/**
+ * Picks a workload profile. On a new cluster (`preset`) it also moves to the
+ * PostgreSQL version the profile needs and ticks the extensions it suggests
+ * that the catalog offers; an edit only changes the profile.
+ */
+export function selectProfile(
+  f: ClusterForm,
+  profile: ClusterProfile,
+  catalog: ClusterExtension[],
+  { preset = false } = {},
+): ClusterForm {
+  const info = PROFILES[profile];
+  const next = { ...f, profile };
+  if (!preset) return next;
+  if (info.minPostgresVersion && next.postgresVersion < info.minPostgresVersion) {
+    next.postgresVersion = info.minPostgresVersion;
+  }
+  const add = info.extensions.filter(name => catalog.some(e => e.name === name) && !next.extensions.includes(name));
+  // Catalog order, as the extensions checkboxes keep it.
+  const wanted = new Set([...next.extensions, ...add]);
+  next.extensions = [
+    ...catalog.map(e => e.name).filter(n => wanted.has(n)),
+    ...next.extensions.filter(n => !catalog.some(e => e.name === n)),
+  ];
+  return next;
+}
+
+/** Changes the PostgreSQL version, unticking extensions it can't load (image extensions below 18). */
+export function selectPostgresVersion(f: ClusterForm, version: number, catalog: ClusterExtension[]): ClusterForm {
+  return {
+    ...f,
+    postgresVersion: version,
+    extensions: f.extensions.filter(name => {
+      const e = catalog.find(c => c.name === name);
+      return !e || extensionAvailable(e, version);
+    }),
+  };
 }
 
 const UNITS: Record<string, number> = { Mi: 1, Gi: 1024, Ti: 1024 * 1024 };

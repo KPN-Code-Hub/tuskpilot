@@ -17,6 +17,7 @@ import {
 import {
   cnpgClusterCreatePermission,
   type PostgresClusterSummary,
+  PROFILES,
   VECTOR_EXTENSION,
 } from '@internal/backstage-plugin-cnpg-common';
 import { useMemo, useState } from 'react';
@@ -96,7 +97,14 @@ export const ClusterListPage = () => {
       id: 'version',
       label: 'PostgreSQL',
       cell: c => (
-        <CellText title={c.postgresVersion ? String(c.postgresVersion) : '-'} />
+        <CellText
+          title={c.postgresVersion ? String(c.postgresVersion) : '-'}
+          description={
+            c.profile !== 'general'
+              ? PROFILES[c.profile].displayName
+              : undefined
+          }
+        />
       ),
     },
     {

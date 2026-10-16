@@ -1,13 +1,18 @@
 import { Checkbox, CheckboxGroup, Flex, NumberField, Select, Switch, Text, TextField } from '@backstage/ui';
 import {
+  CLUSTER_PROFILES,
   ClusterExtension,
+  ClusterProfile,
   ClusterSize,
+  extensionAvailable,
+  IMAGE_EXTENSIONS_MIN_VERSION,
   ProjectSummary,
+  PROFILES,
   sizeLabel,
   VECTOR_EXTENSION,
 } from '@internal/backstage-plugin-cnpg-common';
 import { Section } from './common';
-import { ClusterForm, selectSize } from './form';
+import { ClusterForm, selectPostgresVersion, selectProfile, selectSize } from './form';
 
 const opts = (values: Array<string | number>) => values.map(v => ({ id: String(v), label: String(v) }));
 
@@ -112,12 +117,17 @@ export const ClusterFormFields = ({
       .map(name => ({ name, displayName: name, description: 'Not in the catalog: can be removed, not added again.', parameters: {} })),
   ];
   const removed = editing ? original!.extensions.filter(e => !form.extensions.includes(e)) : [];
-  // Extensions that make CNPG load a library: adding or removing one restarts the instances.
+  // Extensions that make CNPG load a library or mount an image: adding or
+  // removing one restarts the instances.
   const restarts = editing
     ? catalog.filter(
-        e => Object.keys(e.parameters).length && original!.extensions.includes(e.name) !== form.extensions.includes(e.name),
+        e =>
+          (Object.keys(e.parameters).length || e.sharedPreloadLibraries?.length || e.image) &&
+          original!.extensions.includes(e.name) !== form.extensions.includes(e.name),
       )
     : [];
+  const unavailable = catalog.filter(e => !extensionAvailable(e, form.postgresVersion));
+  const removedImages = catalog.filter(e => e.image && removed.includes(e.name));
 
   let storageClassField;
   if (editing) {
@@ -182,16 +192,25 @@ export const ClusterFormFields = ({
           />
         )}
         <Select
+          label="Workload profile"
+          value={form.profile}
+          onChange={k => setForm(f => selectProfile(f, k as ClusterProfile, catalog, { preset: !editing }))}
+          options={CLUSTER_PROFILES.map(p => ({ id: p, label: PROFILES[p].displayName }))}
+          description={PROFILES[form.profile].description}
+        />
+        <Select
           label="PostgreSQL version"
           isDisabled={editing}
           value={String(form.postgresVersion)}
-          onChange={k => set('postgresVersion')(Number(k))}
+          onChange={k => setForm(f => selectPostgresVersion(f, Number(k), catalog))}
           options={opts([18, 17, 16, 15, 14])}
           description={
-            editing
+            err('postgresVersion') ??
+            (editing
               ? 'A major upgrade restarts the whole cluster; run it with kubectl.'
-              : 'Major version; minor updates roll out with the image catalog.'
+              : 'Major version; minor updates roll out with the image catalog.')
           }
+          isInvalid={Boolean(err('postgresVersion'))}
         />
         <NumberField
           label="Instances"
@@ -546,7 +565,12 @@ export const ClusterFormFields = ({
             onChange={v => set('extensions')(extensionOptions.map(e => e.name).filter(n => v.includes(n)))}
           >
             {extensionOptions.map(e => (
-              <Checkbox key={e.name} value={e.name}>
+              <Checkbox
+                key={e.name}
+                value={e.name}
+                // Can't be added below 18; one the cluster has can still be unticked.
+                isDisabled={!extensionAvailable(e, form.postgresVersion) && !form.extensions.includes(e.name)}
+              >
                 <Flex direction="column" gap="0">
                   <Text>{e.displayName}</Text>
                   {e.description && (
@@ -563,16 +587,32 @@ export const ClusterFormFields = ({
             The platform offers no extensions (EnvironmentConfig postgres-extensions).
           </Text>
         )}
+        {unavailable.length > 0 && (
+          <Text variant="body-small" color="secondary">
+            {unavailable.map(e => e.displayName).join(', ')} {unavailable.length === 1 ? 'is' : 'are'} mounted from an
+            image, which needs PostgreSQL {IMAGE_EXTENSIONS_MIN_VERSION} or later.
+          </Text>
+        )}
         {form.extensions.includes(VECTOR_EXTENSION) && (!editing || !original!.extensions.includes(VECTOR_EXTENSION)) && (
           <Text variant="body-small" color="secondary">
             Building an HNSW index on many vectors uses a lot of memory (maintenance_work_mem): pick size M or
-            larger for millions of embeddings.
+            larger for millions of embeddings
+            {form.profile === 'vector'
+              ? ', which the Vector & RAG profile gives more of.'
+              : ', and the Vector & RAG profile for more of it.'}
           </Text>
         )}
         {removed.length > 0 && (
           <Text variant="body-small" color="warning">
             {removed.join(', ')} stay{removed.length === 1 ? 's' : ''} installed: dropping an extension also drops
             the columns and indexes that use it, so do that with psql if you mean it.
+          </Text>
+        )}
+        {removedImages.length > 0 && (
+          <Text variant="body-small" color="warning">
+            {removedImages.map(e => e.displayName).join(', ')} {removedImages.length === 1 ? 'is' : 'are'} no longer
+            mounted once removed: drop the indexes and columns that use{' '}
+            {removedImages.length === 1 ? 'it' : 'them'} first (DROP EXTENSION ... CASCADE), or they stop working.
           </Text>
         )}
         {restarts.length > 0 && (

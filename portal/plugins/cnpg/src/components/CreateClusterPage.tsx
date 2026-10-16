@@ -1,8 +1,8 @@
 import { useApi, useRouteRef } from '@backstage/frontend-plugin-api';
 import { usePermission } from '@backstage/plugin-permission-react';
 import { Alert, ButtonLink, Container, Flex, Grid, Header } from '@backstage/ui';
-import { cnpgProjectCreatePermission } from '@internal/backstage-plugin-cnpg-common';
-import { useEffect, useMemo, useState } from 'react';
+import { cnpgProjectCreatePermission, isClusterProfile, PROFILES } from '@internal/backstage-plugin-cnpg-common';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import useAsync from 'react-use/esm/useAsync';
 import { stringify } from 'yaml';
@@ -10,7 +10,7 @@ import { cnpgApiRef } from '../api';
 import { clusterRouteRef, createProjectRouteRef } from '../routes';
 import { ClusterFormFields } from './ClusterFormFields';
 import { ManifestPanel } from './common';
-import { ClusterForm, defaultForm, selectSize, toManifest, toSpec, validate } from './form';
+import { ClusterForm, defaultForm, selectProfile, selectSize, toManifest, toSpec, validate } from './form';
 
 export const CreateClusterPage = () => {
   const api = useApi(cnpgApiRef);
@@ -41,12 +41,27 @@ export const CreateClusterPage = () => {
     }
   }, [config, projects]);
 
-  // A new cluster starts at the catalog's first (smallest) size.
+  // ?profile=vector (the "New RAG cluster" nav item) presets the profile:
+  // its PostgreSQL version and the extensions the catalog offers, once the
+  // catalog is loaded.
+  const profileParam = params.get('profile');
+  const presetProfile = isClusterProfile(profileParam) ? profileParam : 'general';
+  const preset = useRef(false);
+  useEffect(() => {
+    if (presetProfile !== 'general' && extensions && !preset.current) {
+      preset.current = true;
+      setForm(f => selectProfile(f, presetProfile, extensions, { preset: true }));
+    }
+  }, [presetProfile, extensions]);
+
+  // A new cluster starts at the catalog's first (smallest) size; a vector
+  // cluster at M if there is one, to build its indexes in memory.
   useEffect(() => {
     if (sizes?.length) {
-      setForm(f => (f.size ? f : selectSize(f, sizes[0].name, sizes, { suggestVolumes: true })));
+      const first = (presetProfile === 'vector' && sizes.find(s => s.name === 'm')) || sizes[0];
+      setForm(f => (f.size ? f : selectSize(f, first.name, sizes, { suggestVolumes: true })));
     }
-  }, [sizes]);
+  }, [sizes, presetProfile]);
 
   /** Selecting a project also suggests its owner, unless one was typed already. */
   const selectProject = (name: string) => {
@@ -92,7 +107,8 @@ export const CreateClusterPage = () => {
   return (
     <>
       <Header
-        title="Create PostgreSQL cluster"
+        title={presetProfile === 'vector' ? 'Create RAG cluster' : 'Create PostgreSQL cluster'}
+        {...(presetProfile !== 'general' ? { description: PROFILES[presetProfile].description } : {})}
       />
       <Container>
         <Grid.Root columns={{ initial: '1', lg: '3' }} gap="4">

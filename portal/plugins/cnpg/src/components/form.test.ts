@@ -1,8 +1,10 @@
-import { parseSizes, PostgresCluster } from '@internal/backstage-plugin-cnpg-common';
+import { parseExtensions, parseSizes, PostgresCluster } from '@internal/backstage-plugin-cnpg-common';
 import {
   defaultForm,
   fromCluster,
   mergePatch,
+  selectPostgresVersion,
+  selectProfile,
   selectSize,
   toEditPatch,
   toSpec,
@@ -351,5 +353,50 @@ describe('extensions', () => {
     const some = fromCluster(cluster(['vector', 'pg_trgm']));
     expect(toEditPatch(some, { ...some, extensions: ['vector'] })).toEqual({ database: { extensions: ['vector'] } });
     expect(toEditPatch(some, { ...some, extensions: [] })).toEqual({ database: { extensions: [] } });
+  });
+});
+
+describe('workload profile', () => {
+  const catalog = parseExtensions({
+    extensions: [
+      { name: 'vector' },
+      { name: 'vchord', image: { reference: 'vchord@sha256:a' } },
+      { name: 'pg_trgm' },
+      { name: 'pg_search', image: { reference: 'pg_search@sha256:b' } },
+    ],
+  });
+
+  it('presets a new vector cluster: PostgreSQL 18 and the extensions the catalog offers, in catalog order', () => {
+    const f = selectProfile({ ...defaultForm('demo'), extensions: ['pg_trgm'] }, 'vector', catalog, { preset: true });
+    expect(f.profile).toBe('vector');
+    expect(f.postgresVersion).toBe(18);
+    expect(f.extensions).toEqual(['vector', 'vchord', 'pg_trgm', 'pg_search']);
+    expect(toSpec(f)).toMatchObject({ profile: 'vector', postgresVersion: 18 });
+  });
+
+  it('only changes the profile of an existing cluster', () => {
+    const f = selectProfile(defaultForm('demo'), 'vector', catalog);
+    expect(f).toMatchObject({ profile: 'vector', postgresVersion: 17, extensions: [] });
+    expect(validate(f).postgresVersion).toMatch(/PostgreSQL 18/);
+  });
+
+  it('leaves general out of a new spec', () => {
+    expect(toSpec(defaultForm('demo'))).not.toHaveProperty('profile');
+    expect(toSpec(defaultForm('demo'), { explicit: true })).toHaveProperty('profile', 'general');
+  });
+
+  it('reads the profile back', () => {
+    const cluster: PostgresCluster = {
+      apiVersion: 'cnpg.tuskpilot.com/v1alpha1',
+      kind: 'PostgresCluster',
+      metadata: { name: 'rag', namespace: 'demo' },
+      spec: { profile: 'vector', postgresVersion: 18 },
+    };
+    expect(fromCluster(cluster).profile).toBe('vector');
+  });
+
+  it('unticks image extensions when going below PostgreSQL 18', () => {
+    const f = selectPostgresVersion({ ...defaultForm('demo'), postgresVersion: 18, extensions: ['vector', 'vchord'] }, 17, catalog);
+    expect(f.extensions).toEqual(['vector']);
   });
 });

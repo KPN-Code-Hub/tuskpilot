@@ -15,6 +15,7 @@ import {
   useTable,
 } from '@backstage/ui';
 import {
+  clusterProfile,
   type ClusterConnection,
   type ClusterEvent,
   type ClusterLocationStatus,
@@ -22,6 +23,7 @@ import {
   type InstancePod,
   pgauditLog,
   type PostgresClusterDetails,
+  PROFILES,
 } from '@internal/backstage-plugin-cnpg-common';
 import { ReactNode, useState } from 'react';
 import { cnpgApiRef } from '../api';
@@ -271,6 +273,7 @@ export const ClusterDetails = ({ details }: { details: PostgresClusterDetails })
               ['Data volume', `${spec.storage?.size ?? '-'}${spec.storage?.storageClass ? ` (${spec.storage.storageClass})` : ''}`],
               ['WAL volume', spec.walStorage ? `${spec.walStorage.size}` : 'shared with data'],
               ['Size', spec.size ? spec.size.toUpperCase() : 'custom'],
+              ['Workload profile', PROFILES[clusterProfile(spec)].displayName],
               ['CPU request', running.requests?.cpu ?? '-'],
               ['Memory', `${running.requests?.memory ?? '-'} request / ${running.limits?.memory ?? '-'} limit`],
               ...(tuned

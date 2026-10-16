@@ -55,6 +55,7 @@ var pgExpected = map[string]map[string]bool{
 	"extensions": set("cluster", "podmonitor", "monitoring-queries", "prometheusrule", "dashboard", "database-docs", "database-analytics"),
 	// ... unless databases[] lists that database.
 	"extensionslisted": set("cluster", "podmonitor", "monitoring-queries", "prometheusrule", "dashboard", "database-app"),
+	"vector":           set("cluster", "podmonitor", "monitoring-queries", "prometheusrule", "dashboard", "database-docs"),
 }
 
 // The postgresql.conf settings the extensions in use bring from the
@@ -71,10 +72,11 @@ const (
 	pgPrevToken = "eyJsc24iOiIwLzIwMDAwMDAifQ=="
 )
 
-// sizing: (size, resources, parameters) per case.
+// sizing: (size, resources, parameters, profile) per case.
 type sizing struct {
 	size              string
 	resources, params M
+	profile           string
 }
 
 var defaultResources = M{"requests": M{"cpu": "500m", "memory": "1Gi"}, "limits": M{"memory": "1Gi"}}
@@ -85,14 +87,18 @@ var defaultResources = M{"requests": M{"cpu": "500m", "memory": "1Gi"}, "limits"
 var pgSizing = map[string]sizing{
 	"sized": {"m", M{"requests": M{"cpu": "2", "memory": "8Gi"}, "limits": M{"memory": "8Gi"}},
 		M{"shared_buffers": "2GB", "effective_cache_size": "6GB", "work_mem": "16MB",
-			"maintenance_work_mem": "512MB", "max_connections": "200"}},
+			"maintenance_work_mem": "512MB", "max_connections": "200"}, ""},
 	// Kept from status.sizing: the catalog no longer has "retired".
 	"sizegone": {"retired", M{"requests": M{"cpu": "3", "memory": "12Gi"}, "limits": M{"memory": "12Gi"}},
-		M{"shared_buffers": "3GB"}},
+		M{"shared_buffers": "3GB"}, ""},
 	// Not applied: the instances keep the size they had.
 	"sizechanged": {"m", M{"requests": M{"cpu": "2", "memory": "8Gi"}, "limits": M{"memory": "8Gi"}},
-		M{"shared_buffers": "2GB"}},
-	"production": {"", M{"requests": M{"cpu": "1", "memory": "4Gi"}, "limits": M{"memory": "4Gi"}}, M{}},
+		M{"shared_buffers": "2GB"}, ""},
+	"production": {"", M{"requests": M{"cpu": "1", "memory": "4Gi"}, "limits": M{"memory": "4Gi"}}, M{}, ""},
+	// Size m with its vector settings over its own.
+	"vector": {"m", M{"requests": M{"cpu": "2", "memory": "8Gi"}, "limits": M{"memory": "8Gi"}},
+		M{"shared_buffers": "2GB", "effective_cache_size": "6GB", "work_mem": "16MB",
+			"maintenance_work_mem": "1536MB", "max_parallel_maintenance_workers": "2", "max_connections": "200"}, "vector"},
 }
 
 func assertPostgresCluster(r *render, dashboardSrc string) {
@@ -363,9 +369,12 @@ func assertPostgresCluster(r *render, dashboardSrc string) {
 	if kase != "sizeunknown" {
 		sz, ok := pgSizing[kase]
 		if !ok {
-			sz = sizing{"", defaultResources, M{}}
+			sz = sizing{"", defaultResources, M{}, ""}
 		}
 		want := M{"size": sz.size, "resources": sz.resources, "parameters": sz.params}
+		if sz.profile != "" {
+			want["profile"] = sz.profile
+		}
 		check(equal(get(status, "sizing"), want), "status.sizing %s != %s", repr(get(status, "sizing")), repr(want))
 		for _, key := range []string{"cluster", "recovery-cluster"} {
 			if _, ok := r.composed[key]; !ok {
@@ -403,6 +412,10 @@ func assertPostgresCluster(r *render, dashboardSrc string) {
 		"extensionslisted": {
 			"database-app": M{"name": "app", "owner": "app", "reclaim": "retain", "extensions": L{"pg_trgm"}},
 		},
+		// What they require (vector) first, although the spec leaves it out.
+		"vector": {
+			"database-docs": M{"name": "docs", "owner": "docs", "reclaim": "retain", "extensions": L{"vector", "vchord", "pg_search"}},
+		},
 	}[kase]
 	for key, want := range wantDBs {
 		spec := mp(r.live(key), "spec")
@@ -414,6 +427,21 @@ func assertPostgresCluster(r *render, dashboardSrc string) {
 		got := M{"name": str(spec, "name"), "owner": str(spec, "owner"), "reclaim": str(spec, "databaseReclaimPolicy"), "extensions": exts}
 		check(equal(got, want), "%s: %s != %s", key, repr(got), repr(want))
 		check(str(spec, "cluster", "name") == name, "%s: cluster.name", key)
+	}
+
+	// --- image extensions: mounted from the catalog's images and preloaded.
+	if kase == "vector" {
+		pg := mp(r.live("cluster"), "spec", "postgresql")
+		var mounted L
+		for _, e := range list(pg, "extensions") {
+			mounted = append(mounted, str(e, "name"))
+			check(strings.Contains(str(e, "image", "reference"), "@sha256:"), "extension %s image not pinned by digest", str(e, "name"))
+		}
+		check(equal(mounted, L{"vchord", "pg_search"}), "image extensions %s", repr(mounted))
+		check(equal(get(pg, "shared_preload_libraries"), L{"vchord", "pg_search"}), "shared_preload_libraries %s", repr(get(pg, "shared_preload_libraries")))
+		check(equal(get(r.live("cluster"), "spec", "imageCatalogRef", "major"), float64(18)), "imageCatalogRef.major should be 18")
+		queries := str(r.live("monitoring-queries"), "data", "queries")
+		check(strings.Contains(queries, "vector_index:") && strings.Contains(queries, "create_index_progress:"), "vector exporter queries missing")
 	}
 
 	if kase == "sizechanged" {

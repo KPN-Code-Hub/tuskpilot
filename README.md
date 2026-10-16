@@ -14,6 +14,9 @@ them:
   team a highly available cluster with connection pooling (PgBouncer), in a size (SKU) from the
   platform's catalog (XS to XL) with PostgreSQL tuned to it, or with custom CPU and memory (see
   [Sizes](api/README.md#sizes)).
+- **Vector & RAG:** a `vector` workload profile (PostgreSQL 18) with pgvector, VectorChord for large
+  vector indexes and pg_search (BM25) for hybrid search, mounted as CNPG extension images, memory
+  tuned for building vector indexes and metrics on them (see [Profiles](api/README.md#profiles)).
 - **Extensions:** pgvector for vector search (embeddings, RAG) and other extensions from the
   platform's catalog, picked per cluster in the API or the portal (see
   [Extensions](api/README.md#extensions)).

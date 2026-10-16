@@ -11,6 +11,9 @@ export const EXTENSIONS_NAME = 'postgres-extensions';
 /** pgvector's extension name: what spec...extensions lists for vector search. */
 export const VECTOR_EXTENSION = 'vector';
 
+/** The first PostgreSQL major that loads extensions mounted from images. */
+export const IMAGE_EXTENSIONS_MIN_VERSION = 18;
+
 export interface ClusterExtension {
   /** What the extensions lists say (CREATE EXTENSION <name>). */
   name: string;
@@ -18,7 +21,17 @@ export interface ClusterExtension {
   description?: string;
   /** postgresql.conf settings the composition adds while a database uses it. */
   parameters: Record<string, string>;
+  /** Libraries CNPG preloads while a database uses it (a restart to add or remove). */
+  sharedPreloadLibraries?: string[];
+  /** Mounted from an image (CNPG image volume extensions): PostgreSQL 18+ only. */
+  image?: boolean;
+  /** Extensions the composition creates first, e.g. vector for vchord. */
+  requires?: string[];
 }
+
+/** Whether a cluster on this PostgreSQL major can use the extension. */
+export const extensionAvailable = (e: ClusterExtension, postgresVersion: number) =>
+  !e.image || postgresVersion >= IMAGE_EXTENSIONS_MIN_VERSION;
 
 /** The XRD's pattern for an extension name. */
 const NAME = /^[a-z0-9_-]+$/;
@@ -43,11 +56,18 @@ export function parseExtensions(data: unknown): ClusterExtension[] {
         .map(([k, v]) => [k, str(v)])
         .filter((p): p is [string, string] => p[1] !== undefined),
     );
+    const names = (v: unknown) =>
+      Array.isArray(v) ? v.map(str).filter((n): n is string => Boolean(n)) : [];
+    const preload = names(e.sharedPreloadLibraries);
+    const requires = names(e.requires);
     extensions.push({
       name,
       displayName: str(e.displayName) || name,
       ...(str(e.description) ? { description: str(e.description) } : {}),
       parameters,
+      ...(preload.length ? { sharedPreloadLibraries: preload } : {}),
+      ...(str(e.image?.reference) ? { image: true } : {}),
+      ...(requires.length ? { requires } : {}),
     });
   }
   return extensions;

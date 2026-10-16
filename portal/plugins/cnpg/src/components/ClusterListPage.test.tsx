@@ -10,6 +10,7 @@ const cluster = (over: Partial<PostgresClusterSummary>): PostgresClusterSummary 
   name: 'orders-db',
   namespace: 'demo',
   postgresVersion: 17,
+  profile: 'general',
   instances: 3,
   readyInstances: 3,
   phase: 'Cluster in healthy state',

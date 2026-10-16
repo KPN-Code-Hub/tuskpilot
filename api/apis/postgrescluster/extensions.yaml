@@ -13,12 +13,28 @@
 #                 spec.postgresql.parameters and the size's settings win over
 #                 these. Adding or removing such an extension restarts the
 #                 instances one by one, the primary last (switchover)
+#   requires      optional extensions it needs: the composition creates them
+#                 first in every database that lists it (CNPG doesn't CASCADE)
+#   sharedPreloadLibraries
+#                 optional libraries CNPG must preload for it (restarts the
+#                 instances the same way)
+#   image         for an extension the PostgreSQL images don't ship: the
+#                 extension image CNPG mounts into the instances (image volume
+#                 extensions). PostgreSQL 18+ only (extension_control_path),
+#                 and the location needs image volumes (the portal's location
+#                 health checks it). Built for the image catalog's PostgreSQL
+#                 major and OS (trixie). Pin a digest; changing it rolls the
+#                 instances out one by one
+#   extensionControlPath, dynamicLibraryPath, ldLibraryPath
+#                 directories inside that image, when it doesn't follow CNPG's
+#                 layout (share/, lib/)
 #
-# Only list extensions every image in the image catalog ships: the default
-# postgresql-standard-trixie images carry the contrib extensions plus
-# pgvector and pgaudit (pgaudit is switched on with the pgaudit.log
-# parameter, not listed here). Removing an extension from the catalog only
-# blocks clusters from adding it; databases that have it keep it.
+# Without an image, only list extensions every image in the image catalog
+# ships: the default postgresql-standard-trixie images carry the contrib
+# extensions plus pgvector and pgaudit (pgaudit is switched on with the
+# pgaudit.log parameter, not listed here). Removing an extension from the
+# catalog only blocks clusters from adding it; databases that have it keep it,
+# and a cluster keeps mounting an image extension it uses.
 # The portal lists the extensions in this order.
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
@@ -29,6 +45,25 @@ data:
     - name: vector
       displayName: pgvector
       description: Vector similarity search for embeddings (AI, RAG, recommendations)
+    # VectorChord (TensorChord, AGPLv3 or ELv2).
+    - name: vchord
+      displayName: VectorChord
+      description: Fast vector indexes for large embedding collections (RaBitQ, DiskANN-style); needs pgvector, PostgreSQL 18+
+      requires: [vector]
+      sharedPreloadLibraries: [vchord]
+      image:
+        reference: ghcr.io/tensorchord/vchord-scratch:pg18-v1.1.1@sha256:bdea43bed2a414e21bbf71767bf6f0739747ac480b267b51772dc214ac28dcb3
+      extensionControlPath: [usr/share/postgresql/18]
+      dynamicLibraryPath: [usr/lib/postgresql/18/lib]
+    # pg_search (ParadeDB, AGPLv3). system/ holds the BLAS libraries it links.
+    - name: pg_search
+      displayName: pg_search
+      description: Full-text search with BM25 ranking, for hybrid search next to vectors; needs pgvector, PostgreSQL 18+
+      requires: [vector]
+      sharedPreloadLibraries: [pg_search]
+      image:
+        reference: docker.io/paradedb/paradedb-extension:0.26.2-18-trixie@sha256:ab31167cb82046dcd9893418635d603898c485a0fa5aa6d103a3a4b53a20e527
+      ldLibraryPath: [system]
     - name: pg_stat_statements
       displayName: pg_stat_statements
       description: Execution statistics of every SQL statement

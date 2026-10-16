@@ -48,10 +48,17 @@
 //
 // Extensions (spec.database.extensions, spec.databases[].extensions): the
 // EnvironmentConfig "postgres-extensions" (data.extensions, a list of {name,
-// parameters, ...}) is what the admission policy lets clusters add. The
-// parameters of the extensions in use go under the size's and spec's settings
-// (e.g. one that makes CNPG preload the library). The bootstrap database gets a
-// CNPG Database of its own (databaseReclaimPolicy retain) for its extensions.
+// parameters, sharedPreloadLibraries, image, ...}) is what the admission
+// policy lets clusters add. The parameters of the extensions in use go under
+// the size's and spec's settings, their libraries are preloaded, and one with
+// an image (PostgreSQL 18+) is mounted from it (CNPG image volume
+// extensions); see extensions.go. The bootstrap database gets a CNPG Database
+// of its own (databaseReclaimPolicy retain) for its extensions.
+//
+// Profiles (spec.profile): general, or vector for embeddings and hybrid
+// search. The size's settings for the profile (sizes[].profiles.<profile>)
+// go over the size's own and are kept in status.sizing with them; vector
+// clusters also export metrics on their vector indexes.
 package postgrescluster
 
 import (
@@ -133,7 +140,7 @@ type composition struct {
 	project    Object
 	problem    string
 	labels     map[string]string
-	extensions map[string]string // postgresql.conf settings of the extensions in use
+	extensions extensionConfig // what the extensions in use need
 }
 
 // Compose renders the desired state of a PostgresCluster.
@@ -228,7 +235,7 @@ func (c *composition) compose() (*Output, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.extensions = c.extensionParameters()
+	c.extensions = c.resolveExtensions()
 
 	// ---- archive folders: the cluster's name, or a new one for a restored
 	// cluster (never the folder it restores from)
@@ -350,6 +357,10 @@ func (c *composition) sizing() (*Sizing, error) {
 					Name       string         `json:"name"`
 					Resources  map[string]any `json:"resources"`
 					Parameters map[string]any `json:"parameters"`
+					// Per profile, settings over the size's.
+					Profiles map[string]struct {
+						Parameters map[string]any `json:"parameters"`
+					} `json:"profiles"`
 				} `json:"sizes"`
 			} `json:"data"`
 		}
@@ -359,6 +370,16 @@ func (c *composition) sizing() (*Sizing, error) {
 		for _, s := range catalog.Data.Sizes {
 			if s.Name == spec.Size {
 				sizing = &Sizing{Size: spec.Size, Resources: s.Resources, Parameters: s.Parameters}
+				if p := s.Profiles[spec.profile()].Parameters; len(p) > 0 {
+					params := map[string]any{}
+					for k, v := range s.Parameters {
+						params[k] = v
+					}
+					for k, v := range p {
+						params[k] = v
+					}
+					sizing.Profile, sizing.Parameters = spec.profile(), params
+				}
 			}
 		}
 		pinned := c.xr.Status.Sizing
@@ -395,43 +416,10 @@ func (c *composition) sizing() (*Sizing, error) {
 	if params == nil {
 		params = map[string]any{}
 	}
-	return &Sizing{Size: sizing.Size, Parameters: params, Resources: map[string]any{
+	return &Sizing{Size: sizing.Size, Profile: sizing.Profile, Parameters: params, Resources: map[string]any{
 		"requests": map[string]any{"cpu": digOr(r, "500m", "requests", "cpu"), "memory": digOr(r, "1Gi", "requests", "memory")},
 		"limits":   limits,
 	}}, nil
-}
-
-// extensionParameters are the postgresql.conf settings the extensions in use
-// need, from the postgres-extensions catalog (the first one to set a
-// setting wins).
-func (c *composition) extensionParameters() map[string]string {
-	used := map[string]bool{}
-	for _, e := range c.spec.Database.Extensions {
-		used[e] = true
-	}
-	for _, d := range c.spec.Databases {
-		for _, e := range d.Extensions {
-			used[e] = true
-		}
-	}
-	var catalog struct {
-		Data struct {
-			Extensions []struct {
-				Name       string         `json:"name"`
-				Parameters map[string]any `json:"parameters"`
-			} `json:"extensions"`
-		} `json:"data"`
-	}
-	if items := c.required[RequiredExtensions]; len(items) > 0 {
-		decode(items[0], &catalog)
-	}
-	params := map[string]string{}
-	for _, e := range catalog.Data.Extensions {
-		if used[e.Name] {
-			fillParams(params, e.Parameters)
-		}
-	}
-	return params
 }
 
 // fillParams sets the settings dst doesn't have (or has empty) from src.

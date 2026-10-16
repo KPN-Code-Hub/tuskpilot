@@ -85,7 +85,7 @@ func (c *composition) member(m *member, members []*member, distributed bool) (ma
 	params := map[string]string{}
 	fillParams(params, spec.PostgreSQL.Parameters)
 	fillParams(params, m.sizing.Parameters)
-	for k, v := range c.extensions {
+	for k, v := range c.extensions.parameters {
 		if params[k] == "" {
 			params[k] = v
 		}
@@ -140,8 +140,10 @@ func (c *composition) member(m *member, members []*member, distributed bool) (ma
 		}}
 	}
 	pg := spec.PostgreSQL
-	if len(params) > 0 || len(pg.PgHBA) > 0 || len(pg.SharedPreloadLibraries) > 0 || ha.SynchronousReplicas > 0 {
-		cs.PostgreSQL = &PostgresConfig{Parameters: params, PgHBA: pg.PgHBA, SharedPreloadLibraries: pg.SharedPreloadLibraries}
+	images := m.imageExtensions(c.extensions)
+	preload := m.preloadLibraries(pg.SharedPreloadLibraries, c.extensions, images)
+	if len(params) > 0 || len(pg.PgHBA) > 0 || len(preload) > 0 || len(images) > 0 || ha.SynchronousReplicas > 0 {
+		cs.PostgreSQL = &PostgresConfig{Parameters: params, PgHBA: pg.PgHBA, SharedPreloadLibraries: preload, Extensions: images}
 		if n := ha.SynchronousReplicas; n > 0 {
 			cs.PostgreSQL.Synchronous = &Synchronous{Method: "any", Number: n,
 				DataDurability: or(ha.SynchronousDataDurability, "preferred")}
@@ -257,7 +259,7 @@ func (c *composition) member(m *member, members []*member, distributed bool) (ma
 		d := DatabaseObject{APIVersion: "postgresql.cnpg.io/v1", Kind: "Database",
 			Metadata: meta(name + "-" + strings.ReplaceAll(dbName, "_", "-")),
 			Spec:     DatabaseSpec{Cluster: Ref{Name: name}, Name: dbName, Owner: owner, Ensure: "present", DatabaseReclaimPolicy: reclaim}}
-		for _, e := range extensions {
+		for _, e := range c.extensions.ordered(extensions) {
 			d.Spec.Extensions = append(d.Spec.Extensions, DatabaseExtension{Name: e, Ensure: "present"})
 		}
 		out[key] = emitted{manifest: d, ready: databaseApplied(m.observed[key])}
@@ -323,7 +325,7 @@ func (c *composition) member(m *member, members []*member, distributed bool) (ma
 		}
 		out["monitoring-queries"] = emitted{ready: exists("monitoring-queries"), manifest: ConfigMap{
 			APIVersion: "v1", Kind: "ConfigMap", Metadata: Meta{Name: name + "-monitoring", Namespace: ns, Labels: cmLabels},
-			Data: map[string]string{"queries": strings.TrimSuffix(monitoringQueries, "\n")}}}
+			Data: map[string]string{"queries": queriesFor(spec.profile())}}}
 		if pooler.Enabled {
 			// PgBouncer exporter (port "metrics", 9127) on every pooler pod.
 			out["podmonitor-pooler"] = emitted{manifest: podMonitor(name+"-pooler", "pooler"), ready: exists("podmonitor-pooler")}

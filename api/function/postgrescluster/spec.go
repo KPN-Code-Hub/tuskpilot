@@ -31,6 +31,7 @@ type Spec struct {
 	GeoReplication        GeoReplication   `json:"geoReplication"`
 	PostgresVersion       int              `json:"postgresVersion"`
 	ImageCatalog          string           `json:"imageCatalog"`
+	Profile               string           `json:"profile"`
 	Instances             int              `json:"instances"`
 	Storage               Storage          `json:"storage"`
 	WALStorage            *Storage         `json:"walStorage"`
@@ -184,6 +185,7 @@ func orTrue(b *bool) bool { return b == nil || *b }
 
 func (s *Spec) postgresVersion() int  { return or(s.PostgresVersion, 17) }
 func (s *Spec) instances() int        { return or(s.Instances, 3) }
+func (s *Spec) profile() string       { return or(s.Profile, ProfileGeneral) }
 func (d *Database) name() string      { return or(d.Name, "app") }
 func (d *Database) owner() string     { return or(d.Owner, "app") }
 func (m *Monitoring) enabled() bool   { return orTrue(m.Enabled) }

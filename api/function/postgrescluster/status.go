@@ -45,7 +45,9 @@ type BackupStore struct {
 
 // Sizing is what the instances run with.
 type Sizing struct {
-	Size       string         `json:"size"`
+	Size string `json:"size"`
+	// Profile whose settings for the size are in Parameters.
+	Profile    string         `json:"profile,omitempty"`
 	Resources  map[string]any `json:"resources"`
 	Parameters map[string]any `json:"parameters"`
 }

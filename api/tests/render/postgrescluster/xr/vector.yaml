@@ -1,0 +1,17 @@
+# The vector profile (PostgreSQL 18): size m with its vector settings, and
+# the image extensions VectorChord and pg_search from the postgres-extensions
+# catalog, mounted as image volumes and preloaded. Both require pgvector,
+# which the Database gets first although the spec leaves it out.
+apiVersion: cnpg.tuskpilot.com/v1alpha1
+kind: PostgresCluster
+metadata:
+  name: rag-db
+  namespace: demo
+spec:
+  profile: vector
+  postgresVersion: 18
+  size: m
+  database:
+    name: docs
+    owner: docs
+    extensions: [vchord, pg_search]

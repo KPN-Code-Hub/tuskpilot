@@ -6,6 +6,7 @@
  */
 
 import { specExtensions } from './extensions';
+import { ClusterProfile, clusterProfile } from './profiles';
 import type { ClusterResources } from './sizes';
 
 export const XR_GROUP = 'cnpg.tuskpilot.com';
@@ -103,6 +104,8 @@ export interface PostgresClusterSummary {
   postgresVersion?: number;
   /** spec.size; unset for a cluster with resources of its own. */
   size?: string;
+  /** spec.profile. */
+  profile: ClusterProfile;
   instances: number;
   readyInstances: number;
   phase: string;
@@ -208,6 +211,7 @@ export function summarize(cluster: PostgresCluster, project?: Project): Postgres
     namespace: metadata.namespace,
     postgresVersion: spec.postgresVersion,
     size: spec.size || undefined,
+    profile: clusterProfile(spec),
     instances: spec.instances ?? 0,
     readyInstances: status?.readyInstances ?? 0,
     phase: status?.phase ?? 'Pending',

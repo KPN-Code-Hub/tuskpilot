@@ -32,6 +32,24 @@ var (
 //go:embed assets/monitoring-queries.yaml
 var monitoringQueries string
 
+// Exporter queries of the vector profile. vector_index: size of every vector
+// (pgvector hnsw/ivfflat, VectorChord vchordrq/vchordg) and BM25 (pg_search)
+// index in every database, to compare with the memory they should fit in.
+// create_index_progress: how far index builds are, which take long for vector
+// indexes (pg_stat_progress_create_index, primary only).
+//
+//go:embed assets/vector-queries.yaml
+var vectorQueries string
+
+// queriesFor are the custom exporter queries of a cluster with this profile.
+func queriesFor(profile string) string {
+	q := strings.TrimSuffix(monitoringQueries, "\n")
+	if profile == ProfileVector {
+		q += "\n" + strings.TrimSuffix(vectorQueries, "\n")
+	}
+	return q
+}
+
 // Placeholders in the generated assets.
 const (
 	placeholderCluster   = "zzclusterzz"

@@ -54,7 +54,8 @@ spec:
 # Extensions (spec.database.extensions, spec.databases[].extensions) must be
 # in the EnvironmentConfig postgres-extensions (the policy's parameter): what
 # the image catalog ships and the platform supports. An extension a cluster
-# already lists stays allowed after it's removed from the catalog. Without
+# already lists stays allowed after it's removed from the catalog. One the
+# catalog mounts from an image needs postgresVersion 18 or later. Without
 # the catalog the policy lets everything through; CNPG then reports an
 # extension the image lacks on the Database.
 apiVersion: admissionregistration.k8s.io/v1
@@ -97,11 +98,27 @@ spec:
         variables.requested
         .map(l, l.filter(e, !(e in variables.names) && !variables.had.exists(o, e in o)).join(', '))
         .filter(s, s != '').join(', ')
+    - name: imageNames
+      expression: >-
+        has(params.data) && has(params.data.extensions)
+        ? params.data.extensions.filter(e, has(e.name) && has(e.image)).map(e, string(e.name))
+        : []
+    - name: version
+      expression: "has(object.spec.postgresVersion) ? int(object.spec.postgresVersion) : 17"
+    - name: tooOld
+      expression: >-
+        variables.version >= 18 ? '' :
+        variables.requested.map(l, l.filter(e, e in variables.imageNames).join(', '))
+        .filter(s, s != '').join(', ')
   validations:
     - expression: "variables.rejected == ''"
       messageExpression: >-
         'extensions not in the postgres-extensions catalog: ' + variables.rejected
         + '; choose from: ' + variables.names.join(', ')
+      reason: Invalid
+    - expression: "variables.tooOld == ''"
+      messageExpression: >-
+        'extensions ' + variables.tooOld + ' are mounted from images and need postgresVersion 18 or later'
       reason: Invalid
 ---
 apiVersion: admissionregistration.k8s.io/v1

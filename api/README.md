@@ -118,10 +118,47 @@ spec:
   preload its library, which restarts the instances one by one, the primary last.
 - **Removing** an extension from a list leaves it installed: dropping it would also drop the
   columns and indexes that use it (`DROP EXTENSION vector` drops every `vector` column). Drop it
-  with `psql` if you mean it.
-- **Images:** an extension must be in the image. For one the standard images lack (PostGIS,
-  TimescaleDB), add an image catalog with those images, point `spec.imageCatalog` at it, and add
-  the extension to the catalog.
+  with `psql` if you mean it. An extension mounted from an image is unmounted when no database lists it any
+  more, so drop it (and what uses it) first.
+- **Requires:** an entry's `requires` (e.g. `vector` for `vchord`) is created first in every
+  database that lists it, also when the spec leaves it out: CNPG creates extensions in order,
+  without `CASCADE`.
+- **Images:** an extension must be in the image, or be mounted from one. An entry with `image`
+  (PostgreSQL 18+) is mounted into the instances as a CNPG
+  [image volume extension](https://cloudnative-pg.io/docs/1.30/imagevolume_extensions) while a
+  database uses it, with its `sharedPreloadLibraries` preloaded; the catalog ships VectorChord
+  (`vchord`) and ParadeDB's `pg_search` this way, pinned by digest. The location needs image
+  volumes: the portal's location health and `install/add-location.sh` check for them. The
+  admission policy and the composition refuse them below PostgreSQL 18. A running cluster keeps
+  mounting an image extension it uses even when the catalog no longer describes it (dropping it
+  would stop PostgreSQL, which preloads it). For extensions without such an image (PostGIS,
+  TimescaleDB), add an image catalog with images that ship them, point `spec.imageCatalog` at it,
+  and add the extension to the catalog.
+- **Licenses:** `vchord` is AGPLv3 or ELv2, `pg_search` AGPLv3. Check that this fits how you
+  offer the platform before you keep them in the catalog.
+
+## Profiles
+
+`spec.profile` tunes a cluster for a kind of workload:
+
+| Profile | What it does |
+|---|---|
+| `general` (default) | The size's settings as they are. |
+| `vector` | For embeddings, RAG and hybrid search. PostgreSQL 18+ (the XRD refuses less). The size's `profiles.vector.parameters` go over its own ([`sizes.yaml`](apis/postgrescluster/sizes.yaml): `maintenance_work_mem` ~20% of the memory to build HNSW and VectorChord indexes in it, parallel maintenance workers up to the CPUs) and are kept in `status.sizing` with them. Extra exporter metrics: `cnpg_vector_index_*` (size of every hnsw, ivfflat, vchordrq, vchordg and bm25 index in every database, next to its table's rows) and `cnpg_create_index_progress_*` (how far index builds are). |
+
+The extensions are listed like any others; the portal's **New RAG cluster** (or **Vector & RAG**
+in its create form) starts with `vector`, `vchord` and `pg_search` and PostgreSQL 18:
+
+```yaml
+spec:
+  profile: vector
+  postgresVersion: 18
+  size: m
+  database:
+    name: docs
+    owner: docs
+    extensions: [vector, vchord, pg_search]
+```
 
 ## Differences from `cp-controlplane-poc` (v1 style)
 
@@ -620,9 +657,10 @@ site, connect to that location instead.
 make generate   # after editing src/ (dashboard, alerts)
 make unit       # go test ./function/...: the switchover state machine, the refusals, parameter precedence
 make test       # make unit, then crossplane render for every API, PostgresCluster through the
-                # function built from this checkout (PostgresCluster: 22 cases incl. sizes (from the
+                # function built from this checkout (PostgresCluster: 23 cases incl. sizes (from the
                 # catalog, retired, changed to or created with an unknown one), extensions (the
-                # bootstrap database's, their settings from the catalog), geo-replicated,
+                # bootstrap database's, their settings from the catalog), the vector profile (image
+                # extensions, their preloads and requires, the size's vector settings), geo-replicated,
                 # switchover/failover/promoted, draining, pinned sites, no Project, the Project's
                 # backup bucket and one still provisioning, restores from the bucket, from a store
                 # of its own and from a bucket not ready yet; Project: 6 cases incl. both sites, a

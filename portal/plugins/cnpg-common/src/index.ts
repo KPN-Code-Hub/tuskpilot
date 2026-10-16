@@ -12,4 +12,5 @@ export * from './buckets';
 export * from './volumes';
 export * from './sizes';
 export * from './extensions';
+export * from './profiles';
 export * from './audit';

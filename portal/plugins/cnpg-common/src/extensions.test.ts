@@ -1,4 +1,4 @@
-import { parseExtensions, specExtensions } from './extensions';
+import { extensionAvailable, parseExtensions, specExtensions } from './extensions';
 
 describe('parseExtensions', () => {
   it('reads the catalog in order', () => {
@@ -46,5 +46,37 @@ describe('specExtensions', () => {
   it('is empty without extensions', () => {
     expect(specExtensions({ database: { name: 'app' } })).toEqual([]);
     expect(specExtensions(undefined)).toEqual([]);
+  });
+});
+
+describe('image extensions', () => {
+  const [vchord, vector] = parseExtensions({
+    extensions: [
+      {
+        name: 'vchord',
+        requires: ['vector'],
+        sharedPreloadLibraries: ['vchord'],
+        image: { reference: 'ghcr.io/tensorchord/vchord-scratch:pg18@sha256:abc' },
+      },
+      { name: 'vector' },
+    ],
+  });
+
+  it('reads the image, what it requires and preloads', () => {
+    expect(vchord).toEqual({
+      name: 'vchord',
+      displayName: 'vchord',
+      parameters: {},
+      sharedPreloadLibraries: ['vchord'],
+      image: true,
+      requires: ['vector'],
+    });
+    expect(vector).toEqual({ name: 'vector', displayName: 'vector', parameters: {} });
+  });
+
+  it('needs PostgreSQL 18 for an image extension only', () => {
+    expect(extensionAvailable(vchord, 17)).toBe(false);
+    expect(extensionAvailable(vchord, 18)).toBe(true);
+    expect(extensionAvailable(vector, 14)).toBe(true);
   });
 });

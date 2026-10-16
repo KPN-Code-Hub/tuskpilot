@@ -89,6 +89,8 @@ spec:
                   message: restore can only be set when the cluster is created, and stays
                 - rule: "!has(self.size) || !has(self.resources)"
                   message: set size or resources, not both (remove spec.resources to move a cluster to a size)
+                - rule: "!has(self.profile) || self.profile != 'vector' || (has(self.postgresVersion) ? self.postgresVersion : 17) >= 18"
+                  message: profile vector needs postgresVersion 18 or later (its extensions are mounted from images)
               properties:
                 restore:
                   type: object
@@ -204,6 +206,16 @@ spec:
                   type: string
                   description: Name of the ClusterImageCatalog to resolve postgresVersion in (installed by operator).
                   default: postgresql-standard-trixie
+                profile:
+                  type: string
+                  description: >-
+                    Workload profile. general: the size's settings as they are. vector: for
+                    embeddings, RAG and hybrid search (PostgreSQL 18+): the size's settings for
+                    building vector indexes in memory (postgres-sizes, sizes[].profiles.vector),
+                    and exporter metrics on vector and BM25 indexes and index builds. List the
+                    extensions in database.extensions (vector, vchord, pg_search).
+                  enum: [general, vector]
+                  default: general
                 instances:
                   type: integer
                   description: Number of PostgreSQL instances (1 primary + N-1 hot standbys). Use 3 or more for production.
@@ -658,12 +670,15 @@ spec:
                   properties:
                     size:
                       type: string
+                    profile:
+                      type: string
+                      description: The profile whose settings for the size are in parameters.
                     resources:
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
                     parameters:
                       type: object
-                      description: PostgreSQL settings from the size, before spec.postgresql.parameters.
+                      description: PostgreSQL settings from the size (and its profile settings), before spec.postgresql.parameters.
                       additionalProperties:
                         type: string
                 backupStore:
